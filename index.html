@@ -11309,62 +11309,66 @@
         var selectedChartTags = (cc.tags || []).slice();
         var showTagsSeparately =
           selectedChartTags.length > 0 && cc.seriesMode !== "combined";
-        var chron = pool
-          .filter(function (trade) {
-            if (selectedChartTags.length === 0) return true;
-            if (cc.seriesMode === "combined" && cc.logic === "AND") {
-              return selectedChartTags.every(function (tag) {
-                return trade.tags && trade.tags.indexOf(tag) >= 0;
-              });
-            }
-            return selectedChartTags.some(function (tag) {
-              return trade.tags && trade.tags.indexOf(tag) >= 0;
-            });
-          })
-          .slice()
-          .sort(function (a, b) {
-          return a.time - b.time;
-        });
-        var labels = chron.map(function (t) {
-          return t.time instanceof Date && !isNaN(t.time)
-            ? fmtDateCore(t.time)
-            : t.dateStr || "Unknown";
-        });
-
-        var seriesTags =
-          showTagsSeparately ? selectedChartTags : [null];
+        var seriesTags = showTagsSeparately ? selectedChartTags : [null];
 
         var ctx = canvas.getContext("2d");
-        var datasets = seriesTags.map(function (tag, seriesIndex) {
-          var cumulative = 0;
-          var hasStarted = false;
-          var data = chron.map(function (trade) {
-            var belongsToSeries =
-              tag === null || (trade.tags && trade.tags.indexOf(tag) >= 0);
-            if (belongsToSeries) {
-              cumulative += trade.pnl - (trade.fee || 0);
-              hasStarted = true;
+        var datasets = seriesTags.map(function (tag) {
+          var tagTrades = pool.filter(function (trade) {
+            if (tag === null) {
+              if (selectedChartTags.length === 0) return true;
+              if (cc.logic === "AND") {
+                return selectedChartTags.every(function (t) {
+                  return trade.tags && trade.tags.indexOf(t) >= 0;
+                });
+              }
+              return selectedChartTags.some(function (t) {
+                return trade.tags && trade.tags.indexOf(t) >= 0;
+              });
             }
-            return hasStarted ? Math.round(cumulative * 100) / 100 : null;
+            return trade.tags && trade.tags.indexOf(tag) >= 0;
+          }).slice().sort(function (a, b) {
+            return a.time - b.time;
           });
+
+          var cumulative = 0;
+          var dataPoints = [
+            { x: 0, y: 0, trade: null, dateStr: "Start" }
+          ];
+
+          tagTrades.forEach(function (trade, idx) {
+            var pnl = (trade.pnl || 0) - (trade.fee || 0);
+            cumulative += pnl;
+            var dStr = trade.time instanceof Date && !isNaN(trade.time)
+              ? fmtDateCore(trade.time)
+              : (trade.dateStr || "");
+            dataPoints.push({
+              x: idx + 1,
+              y: Math.round(cumulative * 100) / 100,
+              trade: trade,
+              dateStr: dStr
+            });
+          });
+
           var isProfitable = cumulative >= 0;
           var colorTag = tag ||
             (selectedChartTags.length === 1 ? selectedChartTags[0] : null);
-          var lineColor = colorTag
+          var tagBgColor = colorTag
             ? getTagColor(colorTag)
             : isProfitable
               ? "#22bde8"
               : "#d83a2e";
+          var tagTextColor = getTagTextColor(tagBgColor);
+
+          var labelName = tag === null
+            ? (selectedChartTags.length > 0 ? "Samengeteld" : "All Trades")
+            : formatTagLabel(tag);
 
           return {
-            label:
-              tag === null
-                ? selectedChartTags.length > 0
-                  ? "Samengeteld"
-                  : "All Trades"
-                : formatTagLabel(tag),
-            data: data,
-            borderColor: lineColor,
+            label: labelName,
+            tagBgColor: tagBgColor,
+            tagTextColor: tagTextColor,
+            data: dataPoints,
+            borderColor: tagBgColor,
             backgroundColor: "transparent",
             borderWidth: 2,
             borderDash: [],
@@ -11374,22 +11378,29 @@
             pointRadius: 0,
             pointHoverRadius: 4,
             pointBackgroundColor: "#fff",
-            pointHoverBackgroundColor: lineColor,
+            pointHoverBackgroundColor: tagBgColor,
           };
         });
 
         cc.chartInstance = new Chart(ctx, {
           type: "line",
           data: {
-            labels: labels,
             datasets: datasets,
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
             animation: false,
+            layout: {
+              padding: {
+                top: 10,
+                bottom: 5,
+                left: 10,
+                right: 10
+              }
+            },
             interaction: {
-              mode: "index",
+              mode: "nearest",
               intersect: false,
             },
             plugins: {
@@ -11403,14 +11414,48 @@
                 padding: 8,
                 displayColors: false,
                 callbacks: {
+                  title: function (items) {
+                    if (!items || !items.length) return "";
+                    var item = items[0];
+                    var xVal = item.parsed.x;
+                    if (xVal === 0) return "Start ($0.00)";
+                    var raw = item.raw;
+                    var dateStr = raw && raw.dateStr ? " (" + raw.dateStr + ")" : "";
+                    return "Trade #" + xVal + dateStr;
+                  },
                   label: function (ctx) {
-                    return ctx.dataset.label + ": " + fmtUSD(ctx.parsed.y);
+                    var raw = ctx.raw;
+                    var label = ctx.dataset.label + ": " + fmtUSD(ctx.parsed.y);
+                    if (raw && raw.trade) {
+                      var tradePnl = (raw.trade.pnl || 0) - (raw.trade.fee || 0);
+                      label += " (Trade PnL: " + (tradePnl >= 0 ? "+" : "") + fmtUSD(tradePnl) + ")";
+                    }
+                    return label;
                   },
                 },
               },
             },
             scales: {
-              x: { display: false },
+              x: {
+                type: "linear",
+                display: true,
+                grid: { color: "rgba(255,255,255,0.05)", drawBorder: false },
+                ticks: {
+                  color: "rgba(255,255,255,0.4)",
+                  font: {
+                    family: "monospace",
+                    size: 9,
+                  },
+                  precision: 0,
+                  callback: function (val) {
+                    if (val === 0) return "0";
+                    if (Math.floor(val) === val && val > 0) {
+                      return "#" + val;
+                    }
+                    return "";
+                  },
+                },
+              },
               y: {
                 display: true,
                 position: "right",
