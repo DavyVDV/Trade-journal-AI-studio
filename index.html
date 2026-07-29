@@ -5600,12 +5600,23 @@
         <div class="p-4 overflow-hidden flex-1 min-h-0">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-5 h-full min-h-0">
             <div class="flex flex-col min-h-0">
-              <span class="text-[10px] font-mono uppercase tracking-widest text-slate-200 block mb-1">Alle Tags</span>
-              <p class="text-[10px] text-slate-400 mb-2 font-mono">Wijzig een naam en sla op, of verwijder een tag definitief uit alle trades.</p>
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[10px] font-mono uppercase tracking-widest text-slate-200">Alle Tags</span>
+                <button type="button" onclick="sortGlobalTagsAlphabetically()" class="text-[9px] text-zinc-400 hover:text-blue-300 border border-terminal px-1.5 py-0.5 rounded-sm flex items-center gap-1" title="Tags alfabetisch sorteren (A-Z)">
+                  <i class="fas fa-sort-alpha-down text-[9px]"></i><span>A-Z</span>
+                </button>
+              </div>
+              <p class="text-[10px] text-slate-400 mb-2 font-mono">Wijzig een naam, versleep om te herschikken, of verwijder een tag definitief.</p>
               <div id="globalTagManagerList" class="space-y-1 flex-1 min-h-0 overflow-y-auto pr-1"></div>
             </div>
             <div class="flex flex-col min-h-0 md:border-l md:border-terminal md:pl-5">
-              <span class="text-[10px] font-mono uppercase tracking-widest text-slate-200 block mb-2">Tag Groepen</span>
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[10px] font-mono uppercase tracking-widest text-slate-200">Tag Groepen</span>
+                <button type="button" onclick="sortTagGroupsAlphabetically()" class="text-[9px] text-zinc-400 hover:text-blue-300 border border-terminal px-1.5 py-0.5 rounded-sm flex items-center gap-1" title="Groepen alfabetisch sorteren (A-Z)">
+                  <i class="fas fa-sort-alpha-down text-[9px]"></i><span>Groepen A-Z</span>
+                </button>
+              </div>
+              <p class="text-[10px] text-slate-400 mb-2 font-mono">Versleep groepen en tags om ze te herschikken of in te delen.</p>
               <div class="flex gap-2 mb-2 shrink-0">
                 <input id="newTagGroupInput" type="text" placeholder="NIEUWE GROEP" maxlength="40" class="flex-1 bg-terminal-input border border-terminal rounded-sm p-1.5 text-zinc-200 focus:outline-none uppercase text-[11px]" onkeydown="if(event.key==='Enter'){event.preventDefault();createTagGroup();}" />
                 <button onclick="createTagGroup()" class="px-2.5 py-1 bg-blue-900/30 border border-blue-800 text-blue-300 rounded-sm hover:bg-blue-900/50 uppercase tracking-wider text-[10px] font-bold whitespace-nowrap">Aanmaken</button>
@@ -6288,13 +6299,24 @@
 
       var tagGroups = [];
 
+      var tagGroups = [];
+      var activeRenamingGroupId = null;
+      var activeDeletingGroupId = null;
+
       function loadTagGroups() {
         try {
           var s = localStorage.getItem("qt_tag_groups_v1");
-          if (s) tagGroups = JSON.parse(s);
+          if (s !== null) {
+            tagGroups = JSON.parse(s);
+          } else {
+            tagGroups = [
+              { id: "grp_psychologie", name: "Psychologie & Fouten", tags: ["FOMO", "LATE_ENTRY", "EARLY_EXIT", "CHASING", "REVENGE"] },
+              { id: "grp_strategie", name: "Strategie & Setups", tags: ["PLAN_EXECUTION", "TREND_FOLLOW", "RANGE_SCALP", "BREAKOUT_FAIL", "VWAP_BOUNCE"] }
+            ];
+            saveTagGroups();
+          }
         } catch (e) {}
         if (!Array.isArray(tagGroups)) tagGroups = [];
-        sortTagGroups();
       }
 
       function saveTagGroups() {
@@ -6302,6 +6324,7 @@
       }
 
       function openTagBankEditor() {
+        renderGlobalTagManager();
         document.getElementById("tagBankEditorModal").classList.remove("hidden");
       }
 
@@ -6311,32 +6334,61 @@
 
       function createTagGroup() {
         var input = document.getElementById("newTagGroupInput");
-        var name = input.value.trim();
+        var name = input ? input.value.trim() : "";
         if (!name) return;
         tagGroups.push({ id: "grp_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7), name: name, tags: [] });
-        sortTagGroups();
         saveTagGroups();
-        input.value = "";
+        if (input) input.value = "";
         renderTagGroupsManagement();
+        updateUI();
       }
 
       function renameTagGroup(groupId) {
+        activeDeletingGroupId = null;
+        if (activeRenamingGroupId === groupId) {
+          activeRenamingGroupId = null;
+        } else {
+          activeRenamingGroupId = groupId;
+        }
+        renderTagGroupsManagement();
+      }
+
+      function confirmRenameTagGroup(groupId, newName) {
         var group = tagGroups.find(function (g) { return g.id === groupId; });
-        if (!group) return;
-        var name = prompt("Nieuwe naam voor deze groep:", group.name);
-        if (name === null) return;
-        name = name.trim();
-        if (!name) return;
-        group.name = name;
-        sortTagGroups();
-        saveTagGroups();
+        if (group && newName && newName.trim()) {
+          group.name = newName.trim();
+          saveTagGroups();
+        }
+        activeRenamingGroupId = null;
+        renderTagGroupsManagement();
+        updateUI();
+      }
+
+      function cancelRenameTagGroup() {
+        activeRenamingGroupId = null;
         renderTagGroupsManagement();
       }
 
       function deleteTagGroup(groupId) {
-        if (!confirm("Deze groep verwijderen? De tags zelf blijven bestaan, maar worden ongegroepeerd.")) return;
+        activeRenamingGroupId = null;
+        if (activeDeletingGroupId === groupId) {
+          activeDeletingGroupId = null;
+        } else {
+          activeDeletingGroupId = groupId;
+        }
+        renderTagGroupsManagement();
+      }
+
+      function confirmDeleteTagGroup(groupId) {
         tagGroups = tagGroups.filter(function (g) { return g.id !== groupId; });
+        activeDeletingGroupId = null;
         saveTagGroups();
+        renderTagGroupsManagement();
+        updateUI();
+      }
+
+      function cancelDeleteTagGroup() {
+        activeDeletingGroupId = null;
         renderTagGroupsManagement();
       }
 
@@ -6344,9 +6396,9 @@
         var group = tagGroups.find(function (g) { return g.id === groupId; });
         if (!group || group.tags.indexOf(tag) !== -1) return;
         group.tags.push(tag);
-        group.tags.sort(function (a, b) { return formatTagLabel(a).localeCompare(formatTagLabel(b)); });
         saveTagGroups();
         renderTagGroupsManagement();
+        updateUI();
       }
 
       function removeTagFromGroup(groupId, tag) {
@@ -6355,6 +6407,153 @@
         group.tags = group.tags.filter(function (t) { return t !== tag; });
         saveTagGroups();
         renderTagGroupsManagement();
+        updateUI();
+      }
+
+      function moveGlobalTag(index, direction) {
+        if (direction === "up" && index > 0) {
+          var temp = globalTags[index];
+          globalTags[index] = globalTags[index - 1];
+          globalTags[index - 1] = temp;
+        } else if (direction === "down" && index < globalTags.length - 1) {
+          var temp = globalTags[index];
+          globalTags[index] = globalTags[index + 1];
+          globalTags[index + 1] = temp;
+        }
+        saveGlobalTags();
+        renderGlobalTagManager();
+        updateUI();
+      }
+
+      function moveGlobalTagTo(fromIdx, toIdx) {
+        if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0 || fromIdx >= globalTags.length || toIdx >= globalTags.length) return;
+        var moved = globalTags.splice(fromIdx, 1)[0];
+        globalTags.splice(toIdx, 0, moved);
+        saveGlobalTags();
+        renderGlobalTagManager();
+        updateUI();
+      }
+
+      function moveTagGroup(groupIndex, direction) {
+        if (direction === "up" && groupIndex > 0) {
+          var temp = tagGroups[groupIndex];
+          tagGroups[groupIndex] = tagGroups[groupIndex - 1];
+          tagGroups[groupIndex - 1] = temp;
+        } else if (direction === "down" && groupIndex < tagGroups.length - 1) {
+          var temp = tagGroups[groupIndex];
+          tagGroups[groupIndex] = tagGroups[groupIndex + 1];
+          tagGroups[groupIndex + 1] = temp;
+        }
+        saveTagGroups();
+        renderTagGroupsManagement();
+        updateUI();
+      }
+
+      function moveTagGroupTo(fromIdx, toIdx) {
+        if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0 || fromIdx >= tagGroups.length || toIdx >= tagGroups.length) return;
+        var moved = tagGroups.splice(fromIdx, 1)[0];
+        tagGroups.splice(toIdx, 0, moved);
+        saveTagGroups();
+        renderTagGroupsManagement();
+        updateUI();
+      }
+
+      function moveTagInGroup(groupId, tagIndex, direction) {
+        var group = tagGroups.find(function (g) { return g.id === groupId; });
+        if (!group || !Array.isArray(group.tags)) return;
+        if (direction === "up" && tagIndex > 0) {
+          var temp = group.tags[tagIndex];
+          group.tags[tagIndex] = group.tags[tagIndex - 1];
+          group.tags[tagIndex - 1] = temp;
+        } else if (direction === "down" && tagIndex < group.tags.length - 1) {
+          var temp = group.tags[tagIndex];
+          group.tags[tagIndex] = group.tags[tagIndex + 1];
+          group.tags[tagIndex + 1] = temp;
+        }
+        saveTagGroups();
+        renderTagGroupsManagement();
+        updateUI();
+      }
+
+      function moveTagWithinOrBetweenGroups(sourceGroupId, sourceTagIdx, tag, targetGroupId, targetTagIdx) {
+        var sourceGroup = tagGroups.find(function (g) { return g.id === sourceGroupId; });
+        var targetGroup = tagGroups.find(function (g) { return g.id === targetGroupId; });
+        if (!targetGroup) return;
+
+        if (sourceGroupId === targetGroupId && sourceGroup) {
+          if (sourceTagIdx === undefined || sourceTagIdx === targetTagIdx) return;
+          var moved = sourceGroup.tags.splice(sourceTagIdx, 1)[0];
+          sourceGroup.tags.splice(targetTagIdx, 0, moved);
+        } else {
+          if (sourceGroup) {
+            sourceGroup.tags = sourceGroup.tags.filter(function (t) { return t !== tag; });
+          }
+          targetGroup.tags = targetGroup.tags.filter(function (t) { return t !== tag; });
+          if (targetTagIdx !== undefined && targetTagIdx >= 0 && targetTagIdx <= targetGroup.tags.length) {
+            targetGroup.tags.splice(targetTagIdx, 0, tag);
+          } else {
+            targetGroup.tags.push(tag);
+          }
+        }
+        saveTagGroups();
+        renderTagGroupsManagement();
+        updateUI();
+      }
+
+      function moveTagToGroup(sourceGroupId, tag, targetGroupId) {
+        if (sourceGroupId === targetGroupId) return;
+        var sourceGroup = tagGroups.find(function (g) { return g.id === sourceGroupId; });
+        var targetGroup = tagGroups.find(function (g) { return g.id === targetGroupId; });
+        if (!targetGroup) return;
+
+        if (sourceGroup) {
+          sourceGroup.tags = sourceGroup.tags.filter(function (t) { return t !== tag; });
+        }
+        if (targetGroup.tags.indexOf(tag) === -1) {
+          targetGroup.tags.push(tag);
+        }
+        saveTagGroups();
+        renderTagGroupsManagement();
+        updateUI();
+      }
+
+      function addTagToGroupAt(targetGroupId, tag, targetTagIdx) {
+        var targetGroup = tagGroups.find(function (g) { return g.id === targetGroupId; });
+        if (!targetGroup) return;
+        tagGroups.forEach(function (g) {
+          g.tags = g.tags.filter(function (t) { return t !== tag; });
+        });
+        if (targetTagIdx !== undefined && targetTagIdx >= 0 && targetTagIdx <= targetGroup.tags.length) {
+          targetGroup.tags.splice(targetTagIdx, 0, tag);
+        } else {
+          targetGroup.tags.push(tag);
+        }
+        saveTagGroups();
+        renderTagGroupsManagement();
+        updateUI();
+      }
+
+      function sortGlobalTagsAlphabetically() {
+        globalTags.sort(function (a, b) { return formatTagLabel(a).localeCompare(formatTagLabel(b)); });
+        saveGlobalTags();
+        renderGlobalTagManager();
+        updateUI();
+      }
+
+      function sortTagGroupsAlphabetically() {
+        tagGroups.sort(function (a, b) { return a.name.localeCompare(b.name); });
+        saveTagGroups();
+        renderTagGroupsManagement();
+        updateUI();
+      }
+
+      function sortGroupTagsAlphabetically(groupId) {
+        var group = tagGroups.find(function (g) { return g.id === groupId; });
+        if (!group || !Array.isArray(group.tags)) return;
+        group.tags.sort(function (a, b) { return formatTagLabel(a).localeCompare(formatTagLabel(b)); });
+        saveTagGroups();
+        renderTagGroupsManagement();
+        updateUI();
       }
 
       function getGroupedTagNames() {
@@ -6370,44 +6569,206 @@
         list.innerHTML = "";
         var groupedNames = getGroupedTagNames();
 
-        tagGroups.forEach(function (group) {
+        tagGroups.forEach(function (group, groupIdx) {
           var card = document.createElement("div");
-          card.className = "border border-terminal rounded-sm p-2.5 bg-terminal-input/30";
+          card.setAttribute("draggable", "true");
+          card.className = "border border-terminal rounded-sm p-2.5 bg-terminal-input/30 transition-all";
+
+          card.ondragstart = function (e) {
+            if (e.target.closest && e.target.closest(".tag-chip-item")) return;
+            e.dataTransfer.setData("text/plain", JSON.stringify({ type: "group", index: groupIdx, id: group.id }));
+            e.dataTransfer.effectAllowed = "move";
+            card.style.opacity = "0.4";
+          };
+          card.ondragend = function () {
+            card.style.opacity = "1";
+          };
+          card.ondragover = function (e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            card.classList.add("ring-1", "ring-blue-500", "bg-blue-900/10");
+          };
+          card.ondragleave = function () {
+            card.classList.remove("ring-1", "ring-blue-500", "bg-blue-900/10");
+          };
+          card.ondrop = function (e) {
+            e.preventDefault();
+            card.classList.remove("ring-1", "ring-blue-500", "bg-blue-900/10");
+            try {
+              var data = JSON.parse(e.dataTransfer.getData("text/plain") || "{}");
+              if (data.type === "group" && data.index !== undefined && data.index !== groupIdx) {
+                moveTagGroupTo(data.index, groupIdx);
+              } else if (data.type === "group_tag") {
+                moveTagToGroup(data.sourceGroupId, data.tag, group.id);
+              } else if (data.type === "ungrouped_tag") {
+                addTagToGroup(group.id, data.tag);
+              }
+            } catch (err) {}
+          };
 
           var header = document.createElement("div");
-          header.className = "flex items-center justify-between mb-2";
-          header.innerHTML =
-            '<strong class="text-[10px] uppercase tracking-wider text-zinc-200">' + esc(group.name) + ' <span class="text-zinc-500 font-normal">(' + group.tags.length + ')</span></strong>';
-          var actions = document.createElement("div");
-          actions.className = "flex gap-1";
-          var renameBtn = document.createElement("button");
-          renameBtn.type = "button";
-          renameBtn.className = "text-zinc-400 hover:text-zinc-200 px-1.5";
-          renameBtn.innerHTML = '<i class="fas fa-pen text-[9px]"></i>';
-          renameBtn.onclick = function () { renameTagGroup(group.id); };
-          var deleteBtn = document.createElement("button");
-          deleteBtn.type = "button";
-          deleteBtn.className = "text-zinc-400 hover:text-red-400 px-1.5";
-          deleteBtn.innerHTML = '<i class="fas fa-trash text-[9px]"></i>';
-          deleteBtn.onclick = function () { deleteTagGroup(group.id); };
-          actions.appendChild(renameBtn);
-          actions.appendChild(deleteBtn);
-          header.appendChild(actions);
+          header.className = "flex items-center justify-between mb-2 gap-2";
+
+          if (activeRenamingGroupId === group.id) {
+            var renameWrap = document.createElement("div");
+            renameWrap.className = "flex items-center gap-1.5 flex-1";
+
+            var input = document.createElement("input");
+            input.type = "text";
+            input.className = "bg-terminal-input border border-terminal rounded px-2 py-0.5 text-[10px] text-zinc-100 focus:outline-none focus:border-blue-500 flex-1";
+            input.value = group.name;
+            input.onkeydown = function (e) {
+              if (e.key === "Enter") confirmRenameTagGroup(group.id, input.value);
+              if (e.key === "Escape") cancelRenameTagGroup();
+            };
+
+            var saveBtn = document.createElement("button");
+            saveBtn.type = "button";
+            saveBtn.className = "px-2 py-0.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-[9px] font-bold";
+            saveBtn.innerHTML = '<i class="fas fa-check"></i>';
+            saveBtn.onclick = function () { confirmRenameTagGroup(group.id, input.value); };
+
+            var cancelBtn = document.createElement("button");
+            cancelBtn.type = "button";
+            cancelBtn.className = "px-2 py-0.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded text-[9px]";
+            cancelBtn.innerHTML = '<i class="fas fa-times"></i>';
+            cancelBtn.onclick = function () { cancelRenameTagGroup(); };
+
+            renameWrap.appendChild(input);
+            renameWrap.appendChild(saveBtn);
+            renameWrap.appendChild(cancelBtn);
+            header.appendChild(renameWrap);
+
+            setTimeout(function () { input.focus(); input.select(); }, 20);
+          } else {
+            var titleWrap = document.createElement("div");
+            titleWrap.className = "flex items-center gap-1.5 flex-1 min-w-0";
+
+            var grip = document.createElement("i");
+            grip.className = "fas fa-grip-vertical text-zinc-500 text-[10px] shrink-0 hover:text-zinc-300 cursor-grab";
+            grip.title = "Versleep om groep te verplaatsen";
+
+            var titleEl = document.createElement("strong");
+            titleEl.className = "text-[10px] uppercase tracking-wider text-zinc-200 truncate flex-1";
+            titleEl.innerHTML = esc(group.name) + ' <span class="text-zinc-500 font-normal">(' + group.tags.length + ')</span>';
+
+            titleWrap.appendChild(grip);
+            titleWrap.appendChild(titleEl);
+            header.appendChild(titleWrap);
+
+            var actions = document.createElement("div");
+            actions.className = "flex items-center gap-1 shrink-0";
+
+            if (activeDeletingGroupId === group.id) {
+              var promptSpan = document.createElement("span");
+              promptSpan.className = "text-[9px] text-red-400 font-bold uppercase tracking-wider mr-1";
+              promptSpan.textContent = "Groep verwijderen?";
+
+              var confirmBtn = document.createElement("button");
+              confirmBtn.type = "button";
+              confirmBtn.className = "px-2 py-0.5 bg-red-600 hover:bg-red-500 text-white rounded text-[9px] font-bold";
+              confirmBtn.textContent = "Ja";
+              confirmBtn.onclick = function () { confirmDeleteTagGroup(group.id); };
+
+              var cancelBtn = document.createElement("button");
+              cancelBtn.type = "button";
+              cancelBtn.className = "px-2 py-0.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded text-[9px]";
+              cancelBtn.textContent = "Nee";
+              cancelBtn.onclick = function () { cancelDeleteTagGroup(); };
+
+              actions.appendChild(promptSpan);
+              actions.appendChild(confirmBtn);
+              actions.appendChild(cancelBtn);
+            } else {
+              var sortGroupBtn = document.createElement("button");
+              sortGroupBtn.type = "button";
+              sortGroupBtn.className = "text-zinc-400 hover:text-blue-300 px-1";
+              sortGroupBtn.title = "Tags in deze groep A-Z sorteren";
+              sortGroupBtn.innerHTML = '<i class="fas fa-sort-alpha-down text-[9px]"></i>';
+              sortGroupBtn.onclick = function () { sortGroupTagsAlphabetically(group.id); };
+
+              var renameBtn = document.createElement("button");
+              renameBtn.type = "button";
+              renameBtn.className = "text-zinc-400 hover:text-zinc-200 px-1";
+              renameBtn.innerHTML = '<i class="fas fa-pen text-[9px]"></i>';
+              renameBtn.title = "Groep hernoemen";
+              renameBtn.onclick = function () { renameTagGroup(group.id); };
+
+              var deleteBtn = document.createElement("button");
+              deleteBtn.type = "button";
+              deleteBtn.className = "text-zinc-400 hover:text-red-400 px-1";
+              deleteBtn.innerHTML = '<i class="fas fa-trash text-[9px]"></i>';
+              deleteBtn.title = "Groep verwijderen";
+              deleteBtn.onclick = function () { deleteTagGroup(group.id); };
+
+              actions.appendChild(sortGroupBtn);
+              actions.appendChild(renameBtn);
+              actions.appendChild(deleteBtn);
+            }
+            header.appendChild(actions);
+          }
           card.appendChild(header);
 
           var chips = document.createElement("div");
-          chips.className = "flex flex-wrap gap-1.5 mb-2";
+          chips.className = "flex flex-wrap gap-1.5 mb-2 min-h-[22px]";
           if (!group.tags.length) {
-            chips.innerHTML = '<span class="text-zinc-600 italic text-[10px]">Nog geen tags in deze groep.</span>';
+            chips.innerHTML = '<span class="text-zinc-600 italic text-[10px]">Nog geen tags in deze groep. Versleep tags hiernaartoe.</span>';
           } else {
-            group.tags.forEach(function (tag) {
-              var chip = document.createElement("button");
-              chip.type = "button";
-              chip.className = "border px-2 py-0.5 rounded-sm text-[10px] uppercase inline-flex items-center gap-1.5 hover:brightness-110";
+            group.tags.forEach(function (tag, tagIdx) {
+              var chip = document.createElement("div");
+              chip.setAttribute("draggable", "true");
+              chip.className = "tag-chip-item border px-1.5 py-0.5 rounded-sm text-[10px] uppercase inline-flex items-center gap-1 cursor-grab active:cursor-grabbing hover:brightness-110 transition-all";
               applyTagColor(chip, tag);
-              chip.innerHTML = esc(formatTagLabel(tag)) + ' <i class="fas fa-times text-[8px]"></i>';
-              chip.title = "Verwijderen uit groep";
-              chip.onclick = function () { removeTagFromGroup(group.id, tag); };
+
+              var chipGrip = document.createElement("i");
+              chipGrip.className = "fas fa-grip-vertical text-[8px] opacity-60";
+
+              var tagSpan = document.createElement("span");
+              tagSpan.textContent = formatTagLabel(tag);
+
+              var removeBtn = document.createElement("button");
+              removeBtn.type = "button";
+              removeBtn.className = "hover:text-red-300 ml-0.5";
+              removeBtn.title = "Verwijderen uit groep";
+              removeBtn.innerHTML = '<i class="fas fa-times text-[8px]"></i>';
+              removeBtn.onclick = function (e) { e.stopPropagation(); removeTagFromGroup(group.id, tag); };
+
+              chip.ondragstart = function (e) {
+                e.stopPropagation();
+                e.dataTransfer.setData("text/plain", JSON.stringify({ type: "group_tag", sourceGroupId: group.id, tagIdx: tagIdx, tag: tag }));
+                e.dataTransfer.effectAllowed = "move";
+                chip.style.opacity = "0.4";
+              };
+              chip.ondragend = function (e) {
+                e.stopPropagation();
+                chip.style.opacity = "1";
+              };
+              chip.ondragover = function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                chip.classList.add("ring-2", "ring-blue-400", "scale-105");
+              };
+              chip.ondragleave = function (e) {
+                e.stopPropagation();
+                chip.classList.remove("ring-2", "ring-blue-400", "scale-105");
+              };
+              chip.ondrop = function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                chip.classList.remove("ring-2", "ring-blue-400", "scale-105");
+                try {
+                  var data = JSON.parse(e.dataTransfer.getData("text/plain") || "{}");
+                  if (data.type === "group_tag") {
+                    moveTagWithinOrBetweenGroups(data.sourceGroupId, data.tagIdx, data.tag, group.id, tagIdx);
+                  } else if (data.type === "ungrouped_tag") {
+                    addTagToGroupAt(group.id, data.tag, tagIdx);
+                  }
+                } catch (err) {}
+              };
+
+              chip.appendChild(chipGrip);
+              chip.appendChild(tagSpan);
+              chip.appendChild(removeBtn);
               chips.appendChild(chip);
             });
           }
@@ -6437,21 +6798,61 @@
           ungroupedList.innerHTML = '<span class="text-zinc-600 italic text-[10px]">Alle tags zijn ingedeeld in een groep.</span>';
         } else {
           ungrouped.forEach(function (tag) {
-            var chip = document.createElement("span");
-            chip.className = "border px-2 py-0.5 rounded-sm text-[10px] uppercase inline-flex items-center";
+            var chip = document.createElement("div");
+            chip.setAttribute("draggable", "true");
+            chip.className = "tag-chip-item border px-1.5 py-0.5 rounded-sm text-[10px] uppercase inline-flex items-center gap-1 cursor-grab active:cursor-grabbing hover:brightness-110 transition-all";
             applyTagColor(chip, tag);
-            chip.textContent = formatTagLabel(tag);
+
+            var chipGrip = document.createElement("i");
+            chipGrip.className = "fas fa-grip-vertical text-[8px] opacity-60";
+
+            var labelSpan = document.createElement("span");
+            labelSpan.textContent = formatTagLabel(tag);
+            labelSpan.style.color = "inherit";
+
+            chip.appendChild(chipGrip);
+            chip.appendChild(labelSpan);
+
+            chip.ondragstart = function (e) {
+              e.stopPropagation();
+              e.dataTransfer.setData("text/plain", JSON.stringify({ type: "ungrouped_tag", tag: tag }));
+              e.dataTransfer.effectAllowed = "move";
+              chip.style.opacity = "0.4";
+            };
+            chip.ondragend = function (e) {
+              e.stopPropagation();
+              chip.style.opacity = "1";
+            };
+
             ungroupedList.appendChild(chip);
           });
         }
+
+        ungroupedList.ondragover = function (e) {
+          e.preventDefault();
+          ungroupedList.classList.add("bg-terminal-input/50", "ring-1", "ring-zinc-600");
+        };
+        ungroupedList.ondragleave = function () {
+          ungroupedList.classList.remove("bg-terminal-input/50", "ring-1", "ring-zinc-600");
+        };
+        ungroupedList.ondrop = function (e) {
+          e.preventDefault();
+          ungroupedList.classList.remove("bg-terminal-input/50", "ring-1", "ring-zinc-600");
+          try {
+            var data = JSON.parse(e.dataTransfer.getData("text/plain") || "{}");
+            if (data.type === "group_tag") {
+              removeTagFromGroup(data.sourceGroupId, data.tag);
+            }
+          } catch (err) {}
+        };
       }
 
       function sortGlobalTags() {
-        globalTags.sort(function (a, b) { return formatTagLabel(a).localeCompare(formatTagLabel(b)); });
+        // Preserved for backwards compatibility, no automatic call
       }
 
       function sortTagGroups() {
-        tagGroups.sort(function (a, b) { return a.name.localeCompare(b.name); });
+        // Preserved for backwards compatibility, no automatic call
       }
 
       function loadGlobalTags() {
@@ -6469,7 +6870,6 @@
             "VWAP_BOUNCE",
           ];
         }
-        sortGlobalTags();
       }
 
       function saveGlobalTags() {
@@ -6703,7 +7103,8 @@
             '<div class="text-[11px] text-zinc-400 italic">Geen tags beschikbaar.</div>';
           return;
         }
-        globalTags.forEach(function (tag) {
+
+        var renderTagLabel = function(tag) {
           var label = document.createElement("label");
           label.className =
             "flex items-center gap-2 cursor-pointer text-[11px] text-slate-200 hover:text-white select-none";
@@ -6715,8 +7116,37 @@
             "</span>";
           var input = label.querySelector("input");
           input.checked = tagFilter.tags.indexOf(tag) >= 0;
-          container.appendChild(label);
-        });
+          return label;
+        };
+
+        var allGroupedTags = getGroupedTagNames();
+        if (tagGroups.length) {
+          tagGroups.forEach(function(g) {
+            var validGroupTags = g.tags.filter(function(t) { return globalTags.indexOf(t) !== -1; });
+            if (!validGroupTags.length) return;
+            var groupHeader = document.createElement("div");
+            groupHeader.className = "text-[9px] font-bold uppercase tracking-wider text-zinc-500 mt-1.5 mb-0.5 border-b border-terminal/50 pb-0.5";
+            groupHeader.textContent = g.name;
+            container.appendChild(groupHeader);
+            validGroupTags.forEach(function(tag) {
+              container.appendChild(renderTagLabel(tag));
+            });
+          });
+          var ungrouped = globalTags.filter(function(t) { return allGroupedTags.indexOf(t) === -1; });
+          if (ungrouped.length) {
+            var unHeader = document.createElement("div");
+            unHeader.className = "text-[9px] font-bold uppercase tracking-wider text-zinc-500 mt-1.5 mb-0.5 border-b border-terminal/50 pb-0.5";
+            unHeader.textContent = "Ongegroepeerd";
+            container.appendChild(unHeader);
+            ungrouped.forEach(function(tag) {
+              container.appendChild(renderTagLabel(tag));
+            });
+          }
+        } else {
+          globalTags.forEach(function (tag) {
+            container.appendChild(renderTagLabel(tag));
+          });
+        }
       }
 
       function applyTagFilter() {
@@ -8339,7 +8769,7 @@
         if (!globalTags || globalTags.length === 0) {
           choices.innerHTML = '<span class="header-filter-muted">Geen tags beschikbaar</span>';
         } else {
-          globalTags.forEach(function (tag) {
+          var renderHeaderTagLabel = function (tag) {
             var label = document.createElement("label");
             label.className = "header-filter-tag";
             label.innerHTML =
@@ -8358,8 +8788,37 @@
               });
               updateUI();
             };
-            choices.appendChild(label);
-          });
+            return label;
+          };
+
+          var allGroupedTags = getGroupedTagNames();
+          if (tagGroups.length) {
+            tagGroups.forEach(function (g) {
+              var validGroupTags = g.tags.filter(function (t) { return globalTags.indexOf(t) !== -1; });
+              if (!validGroupTags.length) return;
+              var groupHeader = document.createElement("div");
+              groupHeader.className = "text-[9px] font-bold uppercase tracking-wider text-zinc-500 mt-1 mb-0.5 border-b border-terminal/50 pb-0.5 w-full";
+              groupHeader.textContent = g.name;
+              choices.appendChild(groupHeader);
+              validGroupTags.forEach(function (tag) {
+                choices.appendChild(renderHeaderTagLabel(tag));
+              });
+            });
+            var ungrouped = globalTags.filter(function (t) { return allGroupedTags.indexOf(t) === -1; });
+            if (ungrouped.length) {
+              var unHeader = document.createElement("div");
+              unHeader.className = "text-[9px] font-bold uppercase tracking-wider text-zinc-500 mt-1 mb-0.5 border-b border-terminal/50 pb-0.5 w-full";
+              unHeader.textContent = "Ongegroepeerd";
+              choices.appendChild(unHeader);
+              ungrouped.forEach(function (tag) {
+                choices.appendChild(renderHeaderTagLabel(tag));
+              });
+            }
+          } else {
+            globalTags.forEach(function (tag) {
+              choices.appendChild(renderHeaderTagLabel(tag));
+            });
+          }
         }
 
         container.querySelector("#headerResetTagFilter").onclick = function () {
@@ -9038,6 +9497,16 @@
               tab.onclick = function () { bulkTagGroupFilter = g.id; renderBulkTagsPicker(); };
               tabsContainer.appendChild(tab);
             });
+            var allGroupedTags = getGroupedTagNames();
+            var hasUngrouped = globalTags.some(function (t) { return allGroupedTags.indexOf(t) === -1; });
+            if (hasUngrouped) {
+              var unTab = document.createElement("button");
+              unTab.type = "button";
+              unTab.className = "px-2 py-0.5 rounded-sm text-[9px] uppercase border " + (bulkTagGroupFilter === "__ungrouped__" ? "bg-zinc-700 border-zinc-500 text-white" : "border-terminal text-zinc-400 hover:text-zinc-200");
+              unTab.textContent = "Ongegroepeerd";
+              unTab.onclick = function () { bulkTagGroupFilter = "__ungrouped__"; renderBulkTagsPicker(); };
+              tabsContainer.appendChild(unTab);
+            }
           }
         }
         var container = document.getElementById("bulkExistingTagsPicker");
@@ -9053,7 +9522,7 @@
           bulkVisibleTags = globalTags.filter(function (t) { return allGroupedTags.indexOf(t) === -1; });
         } else if (bulkTagGroupFilter) {
           var activeGroup = tagGroups.find(function (g) { return g.id === bulkTagGroupFilter; });
-          bulkVisibleTags = activeGroup ? globalTags.filter(function (t) { return activeGroup.tags.indexOf(t) !== -1; }) : globalTags;
+          bulkVisibleTags = activeGroup ? activeGroup.tags.filter(function (t) { return globalTags.indexOf(t) !== -1; }) : globalTags;
         }
         if (!bulkVisibleTags.length) {
           container.innerHTML = '<span class="text-zinc-600 italic text-[10px]">Geen tags in deze groep.</span>';
@@ -9104,7 +9573,6 @@
 
         if (newTag && globalTags.indexOf(newTag) === -1) {
           globalTags.push(newTag);
-          sortGlobalTags();
           saveGlobalTags();
         }
 
@@ -9261,6 +9729,16 @@
               tab.onclick = function () { modalTagGroupFilter = g.id; renderModalTags(); };
               groupTabsContainer.appendChild(tab);
             });
+            var allGroupedTags = getGroupedTagNames();
+            var hasUngrouped = globalTags.some(function (t) { return allGroupedTags.indexOf(t) === -1; });
+            if (hasUngrouped) {
+              var unTab = document.createElement("button");
+              unTab.type = "button";
+              unTab.className = "px-2 py-0.5 rounded-sm text-[9px] uppercase border " + (modalTagGroupFilter === "__ungrouped__" ? "bg-zinc-700 border-zinc-500 text-white" : "border-terminal text-zinc-400 hover:text-zinc-200");
+              unTab.textContent = "Ongegroepeerd";
+              unTab.onclick = function () { modalTagGroupFilter = "__ungrouped__"; renderModalTags(); };
+              groupTabsContainer.appendChild(unTab);
+            }
           }
         }
 
@@ -9272,7 +9750,7 @@
           visibleTags = globalTags.filter(function (t) { return allGroupedTags.indexOf(t) === -1; });
         } else if (modalTagGroupFilter) {
           var activeGroup = tagGroups.find(function (g) { return g.id === modalTagGroupFilter; });
-          visibleTags = activeGroup ? globalTags.filter(function (t) { return activeGroup.tags.indexOf(t) !== -1; }) : globalTags;
+          visibleTags = activeGroup ? activeGroup.tags.filter(function (t) { return globalTags.indexOf(t) !== -1; }) : globalTags;
         }
         visibleTags.forEach(function (t) {
           if (currentEditTags.indexOf(t) >= 0) return;
@@ -9297,7 +9775,6 @@
         if (!val) return;
         if (globalTags.indexOf(val) === -1) {
           globalTags.push(val);
-          sortGlobalTags();
         }
         saveGlobalTags();
 
@@ -9906,8 +10383,15 @@
           cloud.appendChild(btn);
         });
 
-        // Render central scrubbing engine dictionary
+        renderGlobalTagManager();
+
+        calculateTagSpecificMetrics();
+        renderCustomCharts();
+      }
+
+      function renderGlobalTagManager() {
         var vault = document.getElementById("globalTagManagerList");
+        if (!vault) return;
         vault.innerHTML = "";
         renderTagGroupsManagement();
         var summaryEl = document.getElementById("tagBankSummary");
@@ -9920,10 +10404,15 @@
           vault.innerHTML =
             '<span class="text-zinc-300 italic text-[11px]">No active string structures.</span>';
         }
-        globalTags.forEach(function (t) {
+        globalTags.forEach(function (t, tagIdx) {
           var row = document.createElement("div");
+          row.setAttribute("draggable", "true");
           row.className =
-            "flex items-center gap-2 bg-terminal-input/50 border border-terminal/60 rounded-sm px-2 py-1 text-[11px]";
+            "flex items-center gap-2 bg-terminal-input/50 border border-terminal/60 rounded-sm px-2 py-1 text-[11px] cursor-grab active:cursor-grabbing hover:border-zinc-500 transition-all";
+
+          var grip = document.createElement("i");
+          grip.className = "fas fa-grip-vertical text-zinc-500 text-[10px] shrink-0 hover:text-zinc-300 mr-0.5 cursor-grab";
+          grip.title = "Versleep om volgorde te veranderen";
 
           var colorInput = document.createElement("input");
           colorInput.type = "color";
@@ -9944,8 +10433,35 @@
             if (event.key === "Enter") renameGlobalTag(t, input.value);
           };
 
+          row.ondragstart = function (e) {
+            e.dataTransfer.setData("text/plain", JSON.stringify({ type: "global_tag", index: tagIdx }));
+            e.dataTransfer.effectAllowed = "move";
+            row.style.opacity = "0.4";
+          };
+          row.ondragend = function () {
+            row.style.opacity = "1";
+          };
+          row.ondragover = function (e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            row.classList.add("border-blue-500", "bg-blue-500/20");
+          };
+          row.ondragleave = function () {
+            row.classList.remove("border-blue-500", "bg-blue-500/20");
+          };
+          row.ondrop = function (e) {
+            e.preventDefault();
+            row.classList.remove("border-blue-500", "bg-blue-500/20");
+            try {
+              var data = JSON.parse(e.dataTransfer.getData("text/plain") || "{}");
+              if (data.type === "global_tag" && data.index !== undefined && data.index !== tagIdx) {
+                moveGlobalTagTo(data.index, tagIdx);
+              }
+            } catch (err) {}
+          };
+
           var actions = document.createElement("div");
-          actions.className = "tag-manager-actions";
+          actions.className = "tag-manager-actions flex items-center gap-1";
 
           var saveButton = document.createElement("button");
           saveButton.type = "button";
@@ -9976,14 +10492,12 @@
 
           actions.appendChild(saveButton);
           actions.appendChild(deleteButton);
+          row.appendChild(grip);
           row.appendChild(colorInput);
           row.appendChild(input);
           row.appendChild(actions);
           vault.appendChild(row);
         });
-
-        calculateTagSpecificMetrics();
-        renderCustomCharts();
       }
 
       function replaceTagInList(list, oldName, newName) {
@@ -10015,7 +10529,6 @@
         }
 
         globalTags = replaceTagInList(globalTags, oldName, newName);
-        sortGlobalTags();
         tagGroups.forEach(function (g) { g.tags = replaceTagInList(g.tags, oldName, newName); });
         saveTagGroups();
         analyticsFilterTags = replaceTagInList(
@@ -11166,12 +11679,13 @@
 
       function applyTagColor(element, tag) {
         var backgroundColor = getTagColor(tag);
+        var textColor = getTagTextColor(backgroundColor);
         element.classList.add("colored-tag");
         element.style.setProperty("--tag-color", backgroundColor);
-        element.style.setProperty(
-          "--tag-text",
-          getTagTextColor(backgroundColor),
-        );
+        element.style.setProperty("--tag-text", textColor, "important");
+        element.style.setProperty("color", textColor, "important");
+        element.style.setProperty("background-color", backgroundColor, "important");
+        element.style.setProperty("border-color", backgroundColor, "important");
       }
 
       function setGlobalTagColor(tag, color) {
@@ -11218,6 +11732,7 @@
         var data = {
           trades: trades,
           globalTags: globalTags,
+          tagGroups: tagGroups,
           globalTagColors: globalTagColors,
           commissionRules: commissionRules,
           customCharts: cleanCustomCharts,
@@ -11308,6 +11823,13 @@
 
               saveGlobalTags();
               saveGlobalTagColors();
+
+              if (importedData.tagGroups && Array.isArray(importedData.tagGroups)) {
+                tagGroups = importedData.tagGroups;
+              } else {
+                loadTagGroups();
+              }
+              saveTagGroups();
 
               if (importedData.commissionRules) {
                 commissionRules = importedData.commissionRules;
