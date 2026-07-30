@@ -167,7 +167,7 @@
         line-height: 1.1;
       }
       .header-filter-dropdown {
-        width: min(260px, calc(100vw - 2rem));
+        width: min(280px, calc(100vw - 1rem));
         background: #0b1220;
         border: 1px solid rgba(96, 165, 250, 0.22);
         border-radius: 7px;
@@ -644,7 +644,8 @@
       #tradeTable button:hover, #analyticsTable button:hover { color: var(--text-1) !important; }
 
       .header-filter-dropdown {
-        width: 224px;
+        width: 280px;
+        max-width: calc(100vw - 1rem);
         padding: 8px;
         background: #12161b;
         border-color: var(--line-strong);
@@ -5251,26 +5252,28 @@
     <!-- CUSTOM CHART SETTINGS MODAL -->
     <div
       id="customChartSettingsModal"
-      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[110] px-4 hidden"
+      class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[110] p-4 hidden"
+      onclick="if(event.target === this) closeCustomChartSettingsModal()"
     >
       <div
-        class="bg-terminal-card border-2 border-zinc-500 shadow-[0_0_30px_rgba(0,0,0,0.8)] w-full max-w-md flex flex-col rounded-sm font-mono text-xs"
+        class="bg-terminal-card border-2 border-zinc-500 shadow-[0_0_30px_rgba(0,0,0,0.8)] w-full max-w-lg flex flex-col rounded-sm font-mono text-xs max-h-[85vh] overflow-hidden"
       >
         <div
-          class="flex justify-between items-center p-4 border-b border-terminal bg-zinc-900"
+          class="flex justify-between items-center p-4 border-b border-terminal bg-zinc-900 shrink-0"
         >
           <span
             class="text-[11px] font-bold tracking-widest text-zinc-300 uppercase"
             >GRAFIEK INSTELLINGEN</span
           >
           <button
+            type="button"
             onclick="closeCustomChartSettingsModal()"
             class="text-zinc-400 hover:text-white transition-colors"
           >
             <i class="fas fa-times text-sm"></i>
           </button>
         </div>
-        <div class="p-4 space-y-4">
+        <div class="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
           <div>
             <label
               for="ccSettingsTitle"
@@ -5327,32 +5330,56 @@
           <div>
             <label
               class="block text-[10px] text-zinc-400 uppercase tracking-wider mb-1"
-              >Actieve Tags</label
+              >Geselecteerde Tags</label
             >
             <div
               id="ccSettingsActiveTags"
-              class="flex flex-wrap gap-1.5 mb-2 min-h-[30px] p-2 border border-terminal/50 bg-zinc-900/50 rounded-sm"
+              class="flex flex-wrap gap-1.5 mb-3 min-h-[36px] p-2 border border-terminal/50 bg-zinc-900/50 rounded-sm max-h-28 overflow-y-auto"
             ></div>
-            <label
-              class="block text-[10px] text-zinc-400 uppercase tracking-wider mb-1"
-              >Beschikbare Tags</label
-            >
+
+            <div class="flex items-center justify-between mb-1.5 gap-2">
+              <label
+                class="block text-[10px] text-zinc-400 uppercase tracking-wider whitespace-nowrap"
+                >Beschikbare Tags Filteren</label
+              >
+              <select
+                id="ccSettingsGroupFilter"
+                onchange="renderCCModalTags()"
+                class="bg-terminal-input border border-terminal text-[10px] px-2 py-1 rounded-sm text-zinc-200 focus:outline-none font-mono uppercase max-w-[180px]"
+              >
+                <option value="ALL">Alle Groepen</option>
+              </select>
+            </div>
+
+            <div class="relative mb-2">
+              <input
+                id="ccSettingsTagSearch"
+                type="text"
+                placeholder="Zoek op tag naam..."
+                oninput="renderCCModalTags()"
+                class="w-full bg-terminal-input border border-terminal rounded-sm pl-7 pr-3 py-1.5 text-[11px] text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-blue-400/70"
+              />
+              <i class="fas fa-search absolute left-2.5 top-2.5 text-[10px] text-zinc-500"></i>
+            </div>
+
             <div
               id="ccSettingsAvailableTags"
-              class="flex flex-wrap gap-1.5 p-2 border border-terminal/50 rounded-sm"
+              class="flex flex-col gap-1 p-2 border border-terminal/50 bg-zinc-950/70 rounded-sm max-h-48 overflow-y-auto"
             ></div>
           </div>
         </div>
         <div
-          class="p-4 border-t border-terminal bg-zinc-900/50 flex justify-end gap-2"
+          class="p-4 border-t border-terminal bg-zinc-900/50 flex justify-end gap-2 shrink-0"
         >
           <button
+            type="button"
             onclick="closeCustomChartSettingsModal()"
             class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-sm transition-colors uppercase tracking-wider text-[10px] font-bold"
           >
             Annuleren
           </button>
           <button
+            type="button"
             onclick="saveCustomChartSettings()"
             class="px-4 py-2 bg-zinc-200 hover:bg-white text-zinc-900 rounded-sm transition-colors uppercase tracking-wider text-[10px] font-bold"
           >
@@ -5544,19 +5571,47 @@
 
     <div
       id="tagFilterDropdown"
-      class="hidden absolute w-64 bg-slate-800 border border-slate-600 rounded-sm shadow-2xl p-3 z-50 animate-fade-in font-mono"
+      class="hidden absolute w-72 bg-slate-800 border border-slate-600 rounded-sm shadow-2xl p-3 z-50 animate-fade-in font-mono max-h-[85vh] flex flex-col overflow-hidden"
       style="margin-top: 5px"
     >
       <div
-        class="text-xs font-bold text-white mb-2 uppercase pb-1 border-b border-slate-600"
+        class="flex items-center justify-between text-xs font-bold text-white mb-2 uppercase pb-1 border-b border-slate-600 shrink-0"
       >
-        Filter Tags
+        <span>Filter Tags</span>
+        <button
+          type="button"
+          onclick="closeColumnFilterDropdowns()"
+          class="text-zinc-400 hover:text-white transition-colors text-xs px-1"
+        >&times;</button>
       </div>
+
+      <div class="flex items-center justify-between gap-1.5 mb-1.5 shrink-0">
+        <label class="text-[10px] text-zinc-400 uppercase tracking-wider whitespace-nowrap">Groep</label>
+        <select
+          id="tagFilterGroupSelect"
+          onchange="renderTagFilterOptions()"
+          class="bg-terminal-input border border-slate-600 text-[10px] px-2 py-1 rounded-sm text-zinc-200 focus:outline-none uppercase font-mono w-full"
+        >
+          <option value="ALL">Alle Groepen</option>
+        </select>
+      </div>
+
+      <div class="relative mb-2 shrink-0">
+        <input
+          id="tagFilterSearchInput"
+          type="text"
+          placeholder="Zoek op tag..."
+          oninput="renderTagFilterOptions()"
+          class="w-full bg-terminal-input border border-slate-600 rounded-sm pl-6 pr-2 py-1 text-[10px] text-zinc-200 placeholder-zinc-500 focus:outline-none font-mono"
+        />
+        <i class="fas fa-search absolute left-2 top-2 text-[9px] text-zinc-500"></i>
+      </div>
+
       <div
         id="tagFilterOptions"
-        class="space-y-1.5 mb-3 max-h-48 overflow-y-auto pr-1"
+        class="space-y-1 mb-3 max-h-56 overflow-y-auto pr-1 border border-slate-700/60 bg-slate-900/60 p-1.5 rounded-sm flex-1 min-h-0"
       ></div>
-      <div class="flex justify-end gap-2 pt-2 border-t border-slate-600">
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-600 shrink-0">
         <button
           onclick="resetTagFilter()"
           class="px-2 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-sm text-[10px] uppercase font-bold transition-colors w-full border border-slate-600"
@@ -5918,6 +5973,7 @@
       var currentEditTags = [];
       var modalTagGroupFilter = null;
       var analyticsFilterTags = [];
+      var analyticsExcludeTags = [];
       var analyticsFilterLogic =
         localStorage.getItem("qt_analytics_logic") || "AND";
       var activeHeaderFilter = null;
@@ -7086,6 +7142,7 @@
       };
       var tagFilter = {
         tags: [],
+        excludeTags: [],
       };
 
       function closeColumnFilterDropdowns(exceptId) {
@@ -7149,9 +7206,101 @@
         }
         closeColumnFilterDropdowns("tagFilterDropdown");
         var dd = document.getElementById("tagFilterDropdown");
-        positionColumnFilterDropdown(dd, element, 256);
+
+        var groupSelect = document.getElementById("tagFilterGroupSelect");
+        if (groupSelect) {
+          var currentVal = groupSelect.value || "ALL";
+          groupSelect.innerHTML = '<option value="ALL">Alle Groepen</option>';
+          if (Array.isArray(tagGroups)) {
+            tagGroups.forEach(function (g) {
+              var opt = document.createElement("option");
+              opt.value = g.id;
+              opt.textContent = g.name;
+              groupSelect.appendChild(opt);
+            });
+          }
+          var optUn = document.createElement("option");
+          optUn.value = "__ungrouped__";
+          optUn.textContent = "Ongegroepeerd";
+          groupSelect.appendChild(optUn);
+          groupSelect.value = currentVal;
+        }
+
+        positionColumnFilterDropdown(dd, element, 280);
         renderTagFilterOptions();
         dd.classList.remove("hidden");
+      }
+
+      function createTagFilterRow(tag, incArray, excArray, onChange) {
+        if (!incArray) incArray = [];
+        if (!excArray) excArray = [];
+        var isInc = incArray.indexOf(tag) >= 0;
+        var isExc = excArray.indexOf(tag) >= 0;
+
+        var row = document.createElement("div");
+        row.className = "flex items-center justify-between gap-2 py-1 px-1.5 rounded hover:bg-zinc-800/60 select-none w-full";
+
+        var nameSpan = document.createElement("span");
+        nameSpan.className = "text-[11px] font-mono uppercase truncate flex-1 " +
+          (isExc
+            ? "text-red-400 line-through opacity-80 font-bold"
+            : isInc
+            ? "text-emerald-400 font-bold"
+            : "text-zinc-300");
+        nameSpan.textContent = formatTagLabel(tag);
+
+        var btns = document.createElement("div");
+        btns.className = "flex items-center gap-1 shrink-0";
+
+        var incBtn = document.createElement("button");
+        incBtn.type = "button";
+        incBtn.className = "px-1.5 py-0.5 text-[9px] font-bold rounded border transition-colors " +
+          (isInc
+            ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/70"
+            : "bg-terminal-input text-zinc-400 border-terminal hover:text-white hover:border-zinc-500");
+        incBtn.title = "Includeren (Moeilijk vereist)";
+        incBtn.innerHTML = '<i class="fas fa-plus mr-0.5"></i>IN';
+        incBtn.onclick = function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (isInc) {
+            var idx = incArray.indexOf(tag);
+            if (idx >= 0) incArray.splice(idx, 1);
+          } else {
+            if (incArray.indexOf(tag) === -1) incArray.push(tag);
+            var eIdx = excArray.indexOf(tag);
+            if (eIdx >= 0) excArray.splice(eIdx, 1);
+          }
+          onChange();
+        };
+
+        var excBtn = document.createElement("button");
+        excBtn.type = "button";
+        excBtn.className = "px-1.5 py-0.5 text-[9px] font-bold rounded border transition-colors " +
+          (isExc
+            ? "bg-red-500/20 text-red-400 border-red-500/70"
+            : "bg-terminal-input text-zinc-400 border-terminal hover:text-white hover:border-zinc-500");
+        excBtn.title = "Excluderen (Uitsluiten)";
+        excBtn.innerHTML = '<i class="fas fa-minus mr-0.5"></i>EX';
+        excBtn.onclick = function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (isExc) {
+            var idx = excArray.indexOf(tag);
+            if (idx >= 0) excArray.splice(idx, 1);
+          } else {
+            if (excArray.indexOf(tag) === -1) excArray.push(tag);
+            var iIdx = incArray.indexOf(tag);
+            if (iIdx >= 0) incArray.splice(iIdx, 1);
+          }
+          onChange();
+        };
+
+        btns.appendChild(incBtn);
+        btns.appendChild(excBtn);
+        row.appendChild(nameSpan);
+        row.appendChild(btns);
+        return row;
       }
 
       function renderTagFilterOptions() {
@@ -7164,64 +7313,82 @@
           return;
         }
 
-        var renderTagLabel = function(tag) {
-          var label = document.createElement("label");
-          label.className =
-            "flex items-center gap-2 cursor-pointer text-[11px] text-slate-200 hover:text-white select-none";
-          label.innerHTML =
-            '<input type="checkbox" class="tag-filter-cb accent-blue-500" value="' +
-            esc(tag) +
-            '"> <span class="uppercase">' +
-            esc(formatTagLabel(tag)) +
-            "</span>";
-          var input = label.querySelector("input");
-          input.checked = tagFilter.tags.indexOf(tag) >= 0;
-          return label;
+        if (!tagFilter.tags) tagFilter.tags = [];
+        if (!tagFilter.excludeTags) tagFilter.excludeTags = [];
+
+        var onRowChange = function() {
+          updateUI();
+          renderTagFilterOptions();
         };
 
-        var allGroupedTags = getGroupedTagNames();
-        if (tagGroups.length) {
-          tagGroups.forEach(function(g) {
-            var validGroupTags = g.tags.filter(function(t) { return globalTags.indexOf(t) !== -1; });
+        var groupSelect = document.getElementById("tagFilterGroupSelect");
+        var selectedGroup = groupSelect ? groupSelect.value : "ALL";
+        var searchInput = document.getElementById("tagFilterSearchInput");
+        var searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : "";
+
+        var allGroupedTags = typeof getGroupedTagNames === "function" ? getGroupedTagNames() : [];
+
+        var filteredTags = globalTags.filter(function (t) {
+          if (searchQuery && formatTagLabel(t).toLowerCase().indexOf(searchQuery) === -1 && t.toLowerCase().indexOf(searchQuery) === -1) {
+            return false;
+          }
+          if (selectedGroup === "ALL") return true;
+          if (selectedGroup === "__ungrouped__") {
+            return allGroupedTags.indexOf(t) === -1;
+          }
+          var targetGroup = Array.isArray(tagGroups) ? tagGroups.find(function (g) { return g.id === selectedGroup; }) : null;
+          return targetGroup && Array.isArray(targetGroup.tags) && targetGroup.tags.indexOf(t) >= 0;
+        });
+
+        if (filteredTags.length === 0) {
+          container.innerHTML = '<div class="text-[10px] text-zinc-400 italic p-2 text-center">Geen tags gevonden.</div>';
+          return;
+        }
+
+        if (selectedGroup === "ALL" && !searchQuery && Array.isArray(tagGroups) && tagGroups.length > 0) {
+          tagGroups.forEach(function (g) {
+            var validGroupTags = filteredTags.filter(function (t) {
+              return Array.isArray(g.tags) && g.tags.indexOf(t) >= 0;
+            });
             if (!validGroupTags.length) return;
             var groupHeader = document.createElement("div");
-            groupHeader.className = "text-[9px] font-bold uppercase tracking-wider text-zinc-500 mt-1.5 mb-0.5 border-b border-terminal/50 pb-0.5";
+            groupHeader.className = "text-[9px] font-bold uppercase tracking-wider text-zinc-500 mt-1.5 mb-0.5 border-b border-terminal/50 pb-0.5 sticky top-0 bg-slate-900/90 backdrop-blur-xs z-10";
             groupHeader.textContent = g.name;
             container.appendChild(groupHeader);
-            validGroupTags.forEach(function(tag) {
-              container.appendChild(renderTagLabel(tag));
+            validGroupTags.forEach(function (tag) {
+              container.appendChild(createTagFilterRow(tag, tagFilter.tags, tagFilter.excludeTags, onRowChange));
             });
           });
-          var ungrouped = globalTags.filter(function(t) { return allGroupedTags.indexOf(t) === -1; });
+          var ungrouped = filteredTags.filter(function (t) {
+            return allGroupedTags.indexOf(t) === -1;
+          });
           if (ungrouped.length) {
             var unHeader = document.createElement("div");
-            unHeader.className = "text-[9px] font-bold uppercase tracking-wider text-zinc-500 mt-1.5 mb-0.5 border-b border-terminal/50 pb-0.5";
+            unHeader.className = "text-[9px] font-bold uppercase tracking-wider text-zinc-500 mt-1.5 mb-0.5 border-b border-terminal/50 pb-0.5 sticky top-0 bg-slate-900/90 backdrop-blur-xs z-10";
             unHeader.textContent = "Ongegroepeerd";
             container.appendChild(unHeader);
-            ungrouped.forEach(function(tag) {
-              container.appendChild(renderTagLabel(tag));
+            ungrouped.forEach(function (tag) {
+              container.appendChild(createTagFilterRow(tag, tagFilter.tags, tagFilter.excludeTags, onRowChange));
             });
           }
         } else {
-          globalTags.forEach(function (tag) {
-            container.appendChild(renderTagLabel(tag));
+          filteredTags.forEach(function (tag) {
+            container.appendChild(createTagFilterRow(tag, tagFilter.tags, tagFilter.excludeTags, onRowChange));
           });
         }
       }
 
       function applyTagFilter() {
-        var selected = [];
-        document.querySelectorAll(".tag-filter-cb:checked").forEach(function (cb) {
-          selected.push(cb.value);
-        });
-        tagFilter.tags = selected;
-        document.getElementById("tagFilterDropdown").classList.add("hidden");
+        var dd = document.getElementById("tagFilterDropdown");
+        if (dd) dd.classList.add("hidden");
         updateUI();
       }
 
       function resetTagFilter() {
         tagFilter.tags = [];
-        document.getElementById("tagFilterDropdown").classList.add("hidden");
+        tagFilter.excludeTags = [];
+        var dd = document.getElementById("tagFilterDropdown");
+        if (dd) dd.classList.add("hidden");
         updateUI();
       }
 
@@ -7408,7 +7575,16 @@
           return true;
         });
 
-        if (tagFilter.tags.length > 0) {
+        if (tagFilter.excludeTags && tagFilter.excludeTags.length > 0) {
+          f = f.filter(function (t) {
+            if (!t.tags || t.tags.length === 0) return true;
+            return !t.tags.some(function (tag) {
+              return tagFilter.excludeTags.indexOf(tag) >= 0;
+            });
+          });
+        }
+
+        if (tagFilter.tags && tagFilter.tags.length > 0) {
           f = f.filter(function (t) {
             if (logbookTagFilterLogic === "AND") {
               return tagFilter.tags.every(function (tag) {
@@ -8572,7 +8748,7 @@
               : "text-zinc-500 hover:text-white";
             renderHeaderFilterCell(th, def.label, indicator, "side", filterColor);
           } else if (def.key === "tags") {
-            var isFilterActive = tagFilter.tags.length > 0;
+            var isFilterActive = (tagFilter.tags && tagFilter.tags.length > 0) || (tagFilter.excludeTags && tagFilter.excludeTags.length > 0);
             var filterColor = isFilterActive
               ? "text-blue-400"
               : "text-zinc-500 hover:text-white";
@@ -8803,16 +8979,40 @@
       function renderTagsHeaderFilter(container) {
         var logicLabel = logbookTagFilterLogic === "AND" ? "AND" : "OR";
         container.innerHTML =
-          '<div class="header-filter-shell">' +
-          '<div class="header-filter-heading"><span>Tags</span><i class="fas fa-tags"></i></div>' +
-          '<div class="header-filter-section">' +
-          '<button type="button" data-tag-logic="OR" class="tag-logic-choice header-filter-option"><span>OR</span><span>1 tag</span></button>' +
-          '<button type="button" data-tag-logic="AND" class="tag-logic-choice header-filter-option"><span>AND</span><span>combi</span></button>' +
-          '<div class="header-filter-muted">Huidig: ' + logicLabel + '</div>' +
-          '<button type="button" id="headerResetTagFilter" class="header-filter-action">Reset</button>' +
+          '<div class="header-filter-shell w-full">' +
+          '<div class="header-filter-heading flex justify-between items-center pb-1 border-b border-terminal/50">' +
+          '<div class="flex items-center gap-1.5"><span class="font-bold">Filter Tags</span><i class="fas fa-tags text-[10px]"></i></div>' +
+          '<button type="button" id="closeHeaderFilterBtn" class="text-zinc-400 hover:text-white text-xs px-1">&times;</button>' +
           '</div>' +
-          '<div id="headerTagChoices" class="header-filter-section"></div>' +
+          '<div class="header-filter-section flex items-center justify-between gap-1 py-1">' +
+          '<div class="flex gap-1">' +
+          '<button type="button" data-tag-logic="OR" class="tag-logic-choice header-filter-option text-[10px] px-2 py-0.5">OR</button>' +
+          '<button type="button" data-tag-logic="AND" class="tag-logic-choice header-filter-option text-[10px] px-2 py-0.5">AND</button>' +
+          '</div>' +
+          '<button type="button" id="headerResetTagFilter" class="header-filter-action text-[10px] px-2 py-0.5">Reset</button>' +
+          '</div>' +
+          '<div class="flex flex-col gap-1.5 my-1">' +
+          '<select id="headerTagGroupFilter" class="bg-terminal-input border border-terminal/60 text-[10px] px-2 py-1 rounded-sm text-zinc-200 focus:outline-none uppercase font-mono w-full">' +
+          '<option value="ALL">Alle Groepen</option>' +
+          '</select>' +
+          '<div class="relative">' +
+          '<input id="headerTagSearch" type="text" placeholder="Zoek op tag..." class="w-full bg-terminal-input border border-terminal/60 rounded-sm pl-6 pr-2 py-1 text-[10px] text-zinc-200 placeholder-zinc-500 focus:outline-none font-mono" />' +
+          '<i class="fas fa-search absolute left-2 top-2 text-[9px] text-zinc-500"></i>' +
+          '</div>' +
+          '</div>' +
+          '<div id="headerTagChoices" class="header-filter-section max-h-56 overflow-y-auto flex flex-col gap-1 pr-1 border border-terminal/40 bg-zinc-950/60 p-1.5 rounded-sm"></div>' +
           '</div>';
+
+        var closeBtn = container.querySelector("#closeHeaderFilterBtn");
+        if (closeBtn) {
+          closeBtn.onclick = function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            activeHeaderFilter = null;
+            removeHeaderFilterDropdowns();
+            renderHeaders();
+          };
+        }
 
         container.querySelectorAll(".tag-logic-choice").forEach(function (btn) {
           if (btn.getAttribute("data-tag-logic") === logbookTagFilterLogic) {
@@ -8825,66 +9025,108 @@
           };
         });
 
-        var choices = container.querySelector("#headerTagChoices");
-        if (!globalTags || globalTags.length === 0) {
-          choices.innerHTML = '<span class="header-filter-muted">Geen tags beschikbaar</span>';
-        } else {
-          var renderHeaderTagLabel = function (tag) {
-            var label = document.createElement("label");
-            label.className = "header-filter-tag";
-            label.innerHTML =
-              '<input type="checkbox" class="header-tag-filter-cb accent-blue-500" value="' +
-              esc(tag) +
-              '"> <span>' +
-              esc(formatTagLabel(tag)) +
-              "</span>";
-            var input = label.querySelector("input");
-            input.checked = tagFilter.tags.indexOf(tag) >= 0;
-            input.onchange = function () {
-              tagFilter.tags = Array.from(
-                document.querySelectorAll(".header-tag-filter-cb:checked"),
-              ).map(function (cb) {
-                return cb.value;
-              });
-              updateUI();
-            };
-            return label;
+        var groupSelect = container.querySelector("#headerTagGroupFilter");
+        if (groupSelect && Array.isArray(tagGroups)) {
+          tagGroups.forEach(function (g) {
+            var opt = document.createElement("option");
+            opt.value = g.id;
+            opt.textContent = g.name;
+            groupSelect.appendChild(opt);
+          });
+          var optUn = document.createElement("option");
+          optUn.value = "__ungrouped__";
+          optUn.textContent = "Ongegroepeerd";
+          groupSelect.appendChild(optUn);
+        }
+
+        var searchInput = container.querySelector("#headerTagSearch");
+
+        function populateChoices() {
+          var choices = container.querySelector("#headerTagChoices");
+          if (!choices) return;
+          choices.innerHTML = "";
+
+          if (!globalTags || globalTags.length === 0) {
+            choices.innerHTML = '<span class="header-filter-muted p-2">Geen tags beschikbaar</span>';
+            return;
+          }
+
+          if (!tagFilter.tags) tagFilter.tags = [];
+          if (!tagFilter.excludeTags) tagFilter.excludeTags = [];
+
+          var onHeaderRowChange = function() {
+            updateUI();
+            populateChoices();
           };
 
-          var allGroupedTags = getGroupedTagNames();
-          if (tagGroups.length) {
+          var selectedGroup = groupSelect ? groupSelect.value : "ALL";
+          var searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : "";
+          var allGroupedTags = typeof getGroupedTagNames === "function" ? getGroupedTagNames() : [];
+
+          var filteredTags = globalTags.filter(function (t) {
+            if (searchQuery && formatTagLabel(t).toLowerCase().indexOf(searchQuery) === -1 && t.toLowerCase().indexOf(searchQuery) === -1) {
+              return false;
+            }
+            if (selectedGroup === "ALL") return true;
+            if (selectedGroup === "__ungrouped__") {
+              return allGroupedTags.indexOf(t) === -1;
+            }
+            var targetGroup = Array.isArray(tagGroups) ? tagGroups.find(function (g) { return g.id === selectedGroup; }) : null;
+            return targetGroup && Array.isArray(targetGroup.tags) && targetGroup.tags.indexOf(t) >= 0;
+          });
+
+          if (filteredTags.length === 0) {
+            choices.innerHTML = '<div class="text-[10px] text-zinc-400 italic p-2 text-center">Geen tags gevonden.</div>';
+            return;
+          }
+
+          if (selectedGroup === "ALL" && !searchQuery && Array.isArray(tagGroups) && tagGroups.length > 0) {
             tagGroups.forEach(function (g) {
-              var validGroupTags = g.tags.filter(function (t) { return globalTags.indexOf(t) !== -1; });
+              var validGroupTags = filteredTags.filter(function (t) {
+                return Array.isArray(g.tags) && g.tags.indexOf(t) >= 0;
+              });
               if (!validGroupTags.length) return;
               var groupHeader = document.createElement("div");
-              groupHeader.className = "text-[9px] font-bold uppercase tracking-wider text-zinc-500 mt-1 mb-0.5 border-b border-terminal/50 pb-0.5 w-full";
+              groupHeader.className = "text-[9px] font-bold uppercase tracking-wider text-zinc-500 mt-1 mb-0.5 border-b border-terminal/50 pb-0.5 w-full sticky top-0 bg-zinc-950/90 backdrop-blur-xs z-10";
               groupHeader.textContent = g.name;
               choices.appendChild(groupHeader);
               validGroupTags.forEach(function (tag) {
-                choices.appendChild(renderHeaderTagLabel(tag));
+                choices.appendChild(createTagFilterRow(tag, tagFilter.tags, tagFilter.excludeTags, onHeaderRowChange));
               });
             });
-            var ungrouped = globalTags.filter(function (t) { return allGroupedTags.indexOf(t) === -1; });
+            var ungrouped = filteredTags.filter(function (t) {
+              return allGroupedTags.indexOf(t) === -1;
+            });
             if (ungrouped.length) {
               var unHeader = document.createElement("div");
-              unHeader.className = "text-[9px] font-bold uppercase tracking-wider text-zinc-500 mt-1 mb-0.5 border-b border-terminal/50 pb-0.5 w-full";
+              unHeader.className = "text-[9px] font-bold uppercase tracking-wider text-zinc-500 mt-1 mb-0.5 border-b border-terminal/50 pb-0.5 w-full sticky top-0 bg-zinc-950/90 backdrop-blur-xs z-10";
               unHeader.textContent = "Ongegroepeerd";
               choices.appendChild(unHeader);
               ungrouped.forEach(function (tag) {
-                choices.appendChild(renderHeaderTagLabel(tag));
+                choices.appendChild(createTagFilterRow(tag, tagFilter.tags, tagFilter.excludeTags, onHeaderRowChange));
               });
             }
           } else {
-            globalTags.forEach(function (tag) {
-              choices.appendChild(renderHeaderTagLabel(tag));
+            filteredTags.forEach(function (tag) {
+              choices.appendChild(createTagFilterRow(tag, tagFilter.tags, tagFilter.excludeTags, onHeaderRowChange));
             });
           }
         }
 
-        container.querySelector("#headerResetTagFilter").onclick = function () {
-          tagFilter.tags = [];
-          updateUI();
-        };
+        if (groupSelect) groupSelect.onchange = populateChoices;
+        if (searchInput) searchInput.oninput = populateChoices;
+
+        populateChoices();
+
+        var resetBtn = container.querySelector("#headerResetTagFilter");
+        if (resetBtn) {
+          resetBtn.onclick = function () {
+            tagFilter.tags = [];
+            tagFilter.excludeTags = [];
+            updateUI();
+            populateChoices();
+          };
+        }
       }
 
       function updateUI() {
@@ -10438,24 +10680,41 @@
 
         var cloud = document.getElementById("analyticsTagCloud");
         cloud.innerHTML = "";
+        if (!analyticsFilterTags) analyticsFilterTags = [];
+        if (!analyticsExcludeTags) analyticsExcludeTags = [];
+
         globalTags.forEach(function (t) {
-          var active = analyticsFilterTags.indexOf(t) >= 0;
+          var isInc = analyticsFilterTags.indexOf(t) >= 0;
+          var isExc = analyticsExcludeTags.indexOf(t) >= 0;
           var btn = document.createElement("button");
           btn.className =
-            "px-2.5 py-1 rounded-sm text-xs border transition-colors uppercase font-mono " +
-            (active
-              ? "bg-white text-black border-white font-bold"
+            "px-2.5 py-1 rounded-sm text-xs border transition-all uppercase font-mono flex items-center gap-1.5 select-none " +
+            (isInc
+              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/70 font-bold active-tag"
+              : isExc
+              ? "bg-red-500/20 text-red-400 border-red-500/70 font-bold line-through opacity-85"
               : "bg-terminal-input text-zinc-300 border-terminal hover:text-white");
           applyTagColor(btn, t);
-          if (active) btn.classList.add("active-tag");
-          btn.textContent = formatTagLabel(t);
+          if (isInc) btn.classList.add("bg-white");
+
+          btn.innerHTML =
+            (isInc
+              ? '<i class="fas fa-plus text-[9px] text-emerald-400"></i>'
+              : isExc
+              ? '<i class="fas fa-minus text-[9px] text-red-400"></i>'
+              : '') +
+            '<span>' +
+            formatTagLabel(t) +
+            '</span>';
+          btn.title = isInc ? "Includeren (Klik om te excluderen)" : isExc ? "Excluderen (Klik om te deactiveren)" : "Neutraal (Klik om te includeren)";
           btn.onclick = function () {
-            if (active) {
-              analyticsFilterTags = analyticsFilterTags.filter(function (x) {
-                return x !== t;
-              });
-            } else {
+            if (!isInc && !isExc) {
               analyticsFilterTags.push(t);
+            } else if (isInc) {
+              analyticsFilterTags = analyticsFilterTags.filter(function (x) { return x !== t; });
+              analyticsExcludeTags.push(t);
+            } else {
+              analyticsExcludeTags = analyticsExcludeTags.filter(function (x) { return x !== t; });
             }
             renderAnalyticsView();
           };
@@ -10615,14 +10874,22 @@
           oldName,
           newName,
         );
+        analyticsExcludeTags = replaceTagInList(
+          analyticsExcludeTags,
+          oldName,
+          newName,
+        );
         tagFilter.tags = replaceTagInList(tagFilter.tags, oldName, newName);
+        tagFilter.excludeTags = replaceTagInList(tagFilter.excludeTags, oldName, newName);
         currentEditTags = replaceTagInList(currentEditTags, oldName, newName);
         ccModalTempTags = replaceTagInList(ccModalTempTags, oldName, newName);
+        ccModalTempExcludeTags = replaceTagInList(ccModalTempExcludeTags, oldName, newName);
         trades.forEach(function (trade) {
           trade.tags = replaceTagInList(trade.tags, oldName, newName);
         });
         customCharts.forEach(function (chart) {
           chart.tags = replaceTagInList(chart.tags, oldName, newName);
+          chart.excludeTags = replaceTagInList(chart.excludeTags, oldName, newName);
         });
         if (globalTagColors[oldName]) {
           globalTagColors[newName] = globalTagColors[oldName];
@@ -10653,7 +10920,13 @@
             analyticsFilterTags = analyticsFilterTags.filter(function (x) {
               return x !== tagName;
             });
+            analyticsExcludeTags = analyticsExcludeTags.filter(function (x) {
+              return x !== tagName;
+            });
             tagFilter.tags = tagFilter.tags.filter(function (x) {
+              return x !== tagName;
+            });
+            tagFilter.excludeTags = tagFilter.excludeTags.filter(function (x) {
               return x !== tagName;
             });
             delete globalTagColors[tagName];
@@ -10663,6 +10936,9 @@
               return x !== tagName;
             });
             ccModalTempTags = ccModalTempTags.filter(function (x) {
+              return x !== tagName;
+            });
+            ccModalTempExcludeTags = ccModalTempExcludeTags.filter(function (x) {
               return x !== tagName;
             });
             saveGlobalTags();
@@ -10681,6 +10957,9 @@
               chart.tags = (chart.tags || []).filter(function (tag) {
                 return tag !== tagName;
               });
+              chart.excludeTags = (chart.excludeTags || []).filter(function (tag) {
+                return tag !== tagName;
+              });
             });
             saveCustomCharts();
 
@@ -10697,8 +10976,16 @@
         var tbody = document.getElementById("analyticsTableBody");
         var pool = getFilteredTrades();
 
+        if (!analyticsFilterTags) analyticsFilterTags = [];
+        if (!analyticsExcludeTags) analyticsExcludeTags = [];
+
         var matches = pool.filter(function (t) {
-          if (analyticsFilterTags.length === 0) return false;
+          if (analyticsExcludeTags.length > 0) {
+            if (t.tags && t.tags.some(function (nt) { return analyticsExcludeTags.indexOf(nt) >= 0; })) {
+              return false;
+            }
+          }
+          if (analyticsFilterTags.length === 0) return true;
           if (analyticsFilterLogic === "OR") {
             return analyticsFilterTags.some(function (nt) {
               return t.tags && t.tags.indexOf(nt) >= 0;
@@ -10710,14 +10997,14 @@
           }
         });
 
-        if (analyticsFilterTags.length === 0) {
+        if (analyticsFilterTags.length === 0 && analyticsExcludeTags.length === 0) {
           ["tag-kpi-netpnl", "tag-kpi-pf"].forEach(function (id) {
             document.getElementById(id).innerText = "$0.00";
           });
           document.getElementById("tag-kpi-winrate").innerText = "0.0%";
           document.getElementById("tag-kpi-count").innerText = "0";
           tbody.innerHTML =
-            '<tr><td colspan="6" class="px-4 py-6 text-center text-zinc-300 italic">Select structural attributes to filter database vectors.</td></tr>';
+            '<tr><td colspan="6" class="px-4 py-6 text-center text-zinc-300 italic">Selecteer tags om de data te filteren (Includeren / Excluderen).</td></tr>';
           renderAnalyticsChart([]);
           return;
         }
@@ -11345,8 +11632,14 @@
       function computeCustomChartStats(cc) {
         var pool = getFilteredTrades();
         var selectedChartTags = (cc.tags || []).slice();
+        var excludedChartTags = (cc.excludeTags || []).slice();
         var showTagsSeparately = selectedChartTags.length > 0 && cc.seriesMode !== "combined";
         var matched = pool.filter(function (trade) {
+          if (excludedChartTags.length > 0) {
+            if (trade.tags && trade.tags.some(function (t) { return excludedChartTags.indexOf(t) >= 0; })) {
+              return false;
+            }
+          }
           if (selectedChartTags.length === 0) return true;
           if (cc.seriesMode === "combined" && cc.logic === "AND") {
             return selectedChartTags.every(function (tag) {
@@ -11386,6 +11679,7 @@
 
         var pool = getFilteredTrades();
         var selectedChartTags = (cc.tags || []).slice();
+        var excludedChartTags = (cc.excludeTags || []).slice();
         var showTagsSeparately =
           selectedChartTags.length > 0 && cc.seriesMode !== "combined";
         var seriesTags = showTagsSeparately ? selectedChartTags : [null];
@@ -11393,6 +11687,11 @@
         var ctx = canvas.getContext("2d");
         var datasets = seriesTags.map(function (tag) {
           var tagTrades = pool.filter(function (trade) {
+            if (excludedChartTags.length > 0) {
+              if (trade.tags && trade.tags.some(function (t) { return excludedChartTags.indexOf(t) >= 0; })) {
+                return false;
+              }
+            }
             if (tag === null) {
               if (selectedChartTags.length === 0) return true;
               if (cc.logic === "AND") {
@@ -11617,6 +11916,7 @@
 
       var currentEditChartIndex = -1;
       var ccModalTempTags = [];
+      var ccModalTempExcludeTags = [];
 
       function openCustomChartSettings(index) {
         currentEditChartIndex = index;
@@ -11628,7 +11928,30 @@
           cc.seriesMode || "separate";
         document.getElementById("ccSettingsTitle").value = cc.title || "";
         updateCustomChartSeriesModeControls();
+
+        var groupSelect = document.getElementById("ccSettingsGroupFilter");
+        if (groupSelect) {
+          groupSelect.innerHTML = '<option value="ALL">Alle Groepen</option>';
+          if (Array.isArray(tagGroups)) {
+            tagGroups.forEach(function (g) {
+              var opt = document.createElement("option");
+              opt.value = g.id;
+              opt.textContent = g.name;
+              groupSelect.appendChild(opt);
+            });
+          }
+          var optUn = document.createElement("option");
+          optUn.value = "__ungrouped__";
+          optUn.textContent = "Ongegroepeerd";
+          groupSelect.appendChild(optUn);
+          groupSelect.value = "ALL";
+        }
+
+        var searchInput = document.getElementById("ccSettingsTagSearch");
+        if (searchInput) searchInput.value = "";
+
         ccModalTempTags = (cc.tags || []).slice();
+        ccModalTempExcludeTags = (cc.excludeTags || []).slice();
         renderCCModalTags();
         document
           .getElementById("customChartSettingsModal")
@@ -11664,31 +11987,53 @@
 
       function renderCCModalTags() {
         var activeContainer = document.getElementById("ccSettingsActiveTags");
+        if (!activeContainer) return;
         activeContainer.innerHTML = "";
+        if (!ccModalTempTags) ccModalTempTags = [];
+        if (!ccModalTempExcludeTags) ccModalTempExcludeTags = [];
+
+        if (ccModalTempTags.length === 0 && ccModalTempExcludeTags.length === 0) {
+          activeContainer.innerHTML = '<span class="text-[10px] text-zinc-500 italic p-1">Geen actieve tags gekozen. Kies tags uit de lijst hieronder.</span>';
+        }
+
         ccModalTempTags.forEach(function (t) {
           var pill = document.createElement("span");
           pill.className =
-            "active-tag px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wide flex items-center gap-1.5 select-none border";
-          applyTagColor(pill, t);
-          var activeTextColor = getActiveTagTextColor(t);
-          pill.style.setProperty("--tag-text", activeTextColor, "important");
-          pill.style.setProperty("color", activeTextColor, "important");
-          pill.appendChild(document.createTextNode(formatTagLabel(t)));
+            "active-tag px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wide flex items-center gap-1.5 select-none border border-emerald-500/70 bg-emerald-500/20 text-emerald-300";
+          pill.innerHTML = '<i class="fas fa-plus text-[9px] text-emerald-400"></i><span>' + formatTagLabel(t) + '</span>';
 
           var removeButton = document.createElement("button");
           removeButton.type = "button";
           removeButton.className =
-            "h-5 w-5 -mr-1 inline-flex items-center justify-center text-white/80 hover:text-white hover:bg-black/20 rounded-sm transition-colors pointer-events-auto";
-          removeButton.style.setProperty("color", activeTextColor, "important");
+            "h-4 w-4 ml-1 inline-flex items-center justify-center text-emerald-300 hover:text-white rounded transition-colors pointer-events-auto";
           removeButton.setAttribute("aria-label", "Tag " + t + " deactiveren");
-          removeButton.innerHTML =
-            '<i class="fas fa-times text-[9px] pointer-events-none"></i>';
+          removeButton.innerHTML = '<i class="fas fa-times text-[9px] pointer-events-none"></i>';
           removeButton.onclick = function (event) {
             event.preventDefault();
             event.stopPropagation();
-            ccModalTempTags = ccModalTempTags.filter(function (x) {
-              return x !== t;
-            });
+            ccModalTempTags = ccModalTempTags.filter(function (x) { return x !== t; });
+            renderCCModalTags();
+          };
+          pill.appendChild(removeButton);
+          activeContainer.appendChild(pill);
+        });
+
+        ccModalTempExcludeTags.forEach(function (t) {
+          var pill = document.createElement("span");
+          pill.className =
+            "active-tag px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wide flex items-center gap-1.5 select-none border border-red-500/70 bg-red-500/20 text-red-400 line-through";
+          pill.innerHTML = '<i class="fas fa-minus text-[9px] text-red-400"></i><span>' + formatTagLabel(t) + '</span>';
+
+          var removeButton = document.createElement("button");
+          removeButton.type = "button";
+          removeButton.className =
+            "h-4 w-4 ml-1 inline-flex items-center justify-center text-red-400 hover:text-white rounded transition-colors pointer-events-auto";
+          removeButton.setAttribute("aria-label", "Tag " + t + " deactiveren");
+          removeButton.innerHTML = '<i class="fas fa-times text-[9px] pointer-events-none"></i>';
+          removeButton.onclick = function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            ccModalTempExcludeTags = ccModalTempExcludeTags.filter(function (x) { return x !== t; });
             renderCCModalTags();
           };
           pill.appendChild(removeButton);
@@ -11696,23 +12041,72 @@
         });
 
         var availContainer = document.getElementById("ccSettingsAvailableTags");
+        if (!availContainer) return;
         availContainer.innerHTML = "";
-        globalTags.forEach(function (t) {
-          if (ccModalTempTags.indexOf(t) >= 0) return;
-          var btn = document.createElement("button");
-          btn.className =
-            "border px-2 py-0.5 rounded-sm text-[10px] uppercase transition-[filter] hover:brightness-110";
-          applyTagColor(btn, t);
-          var availableTextColor = getActiveTagTextColor(t);
-          btn.style.setProperty("--tag-text", availableTextColor, "important");
-          btn.style.setProperty("color", availableTextColor, "important");
-          btn.textContent = formatTagLabel(t);
-          btn.onclick = function () {
-            ccModalTempTags.push(t);
-            renderCCModalTags();
-          };
-          availContainer.appendChild(btn);
+
+        var groupSelect = document.getElementById("ccSettingsGroupFilter");
+        var selectedGroup = groupSelect ? groupSelect.value : "ALL";
+        var searchInput = document.getElementById("ccSettingsTagSearch");
+        var searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : "";
+
+        var allGroupedTags = typeof getGroupedTagNames === "function" ? getGroupedTagNames() : [];
+
+        var filteredTags = globalTags.filter(function (t) {
+          if (searchQuery && formatTagLabel(t).toLowerCase().indexOf(searchQuery) === -1 && t.toLowerCase().indexOf(searchQuery) === -1) {
+            return false;
+          }
+          if (selectedGroup === "ALL") return true;
+          if (selectedGroup === "__ungrouped__") {
+            return allGroupedTags.indexOf(t) === -1;
+          }
+          var targetGroup = Array.isArray(tagGroups) ? tagGroups.find(function (g) { return g.id === selectedGroup; }) : null;
+          return targetGroup && Array.isArray(targetGroup.tags) && targetGroup.tags.indexOf(t) >= 0;
         });
+
+        if (filteredTags.length === 0) {
+          availContainer.innerHTML = '<div class="text-[10px] text-zinc-500 italic p-3 text-center">Geen overeenkomstige tags gevonden.</div>';
+          return;
+        }
+
+        if (selectedGroup === "ALL" && !searchQuery && Array.isArray(tagGroups) && tagGroups.length > 0) {
+          tagGroups.forEach(function (g) {
+            var gTags = filteredTags.filter(function (t) {
+              return Array.isArray(g.tags) && g.tags.indexOf(t) >= 0;
+            });
+            if (gTags.length > 0) {
+              var hdr = document.createElement("div");
+              hdr.className = "text-[9px] font-bold uppercase tracking-wider text-zinc-500 mt-2 mb-1 border-b border-terminal/40 pb-0.5 sticky top-0 bg-zinc-950/90 backdrop-blur-xs z-10 px-1";
+              hdr.textContent = g.name;
+              availContainer.appendChild(hdr);
+              gTags.forEach(function (t) {
+                availContainer.appendChild(createTagFilterRow(t, ccModalTempTags, ccModalTempExcludeTags, function () {
+                  renderCCModalTags();
+                }));
+              });
+            }
+          });
+
+          var unTags = filteredTags.filter(function (t) {
+            return allGroupedTags.indexOf(t) === -1;
+          });
+          if (unTags.length > 0) {
+            var unHdr = document.createElement("div");
+            unHdr.className = "text-[9px] font-bold uppercase tracking-wider text-zinc-500 mt-2 mb-1 border-b border-terminal/40 pb-0.5 sticky top-0 bg-zinc-950/90 backdrop-blur-xs z-10 px-1";
+            unHdr.textContent = "Ongegroepeerd";
+            availContainer.appendChild(unHdr);
+            unTags.forEach(function (t) {
+              availContainer.appendChild(createTagFilterRow(t, ccModalTempTags, ccModalTempExcludeTags, function () {
+                renderCCModalTags();
+              }));
+            });
+          }
+        } else {
+          filteredTags.forEach(function (t) {
+            availContainer.appendChild(createTagFilterRow(t, ccModalTempTags, ccModalTempExcludeTags, function () {
+              renderCCModalTags();
+            }));
+          });
+        }
       }
 
       function saveCustomChartSettings() {
@@ -11722,6 +12116,7 @@
           cc.logic = document.getElementById("ccSettingsLogic").value;
           cc.seriesMode = document.getElementById("ccSettingsSeriesMode").value;
           cc.tags = ccModalTempTags.slice();
+          cc.excludeTags = ccModalTempExcludeTags.slice();
           saveCustomCharts();
           renderCustomCharts();
         }
@@ -11839,11 +12234,39 @@
       }
 
       function exportBackup() {
+        if (!Array.isArray(globalTags)) globalTags = [];
+        var tagSet = new Set(globalTags);
+        if (Array.isArray(tagGroups)) {
+          tagGroups.forEach(function (g) {
+            if (g && Array.isArray(g.tags)) {
+              g.tags.forEach(function (t) {
+                if (t && !tagSet.has(t)) {
+                  tagSet.add(t);
+                  globalTags.push(t);
+                }
+              });
+            }
+          });
+        }
+        if (Array.isArray(trades)) {
+          trades.forEach(function (tr) {
+            if (tr && Array.isArray(tr.tags)) {
+              tr.tags.forEach(function (t) {
+                if (t && !tagSet.has(t)) {
+                  tagSet.add(t);
+                  globalTags.push(t);
+                }
+              });
+            }
+          });
+        }
+
         var cleanCustomCharts = customCharts.map(function (cc) {
           return {
             id: cc.id,
             title: cc.title || "",
             tags: cc.tags,
+            excludeTags: cc.excludeTags || [],
             logic: cc.logic,
             seriesMode: cc.seriesMode || "separate",
             width: cc.width,
@@ -11932,27 +12355,53 @@
                 }
                 return t;
               });
-              if (importedData.globalTags) {
-                globalTags = importedData.globalTags;
-              } else if (importedData.knownTags) {
-                // Backwards compatibility with broken backup
-                globalTags = importedData.knownTags;
+
+              if (importedData.globalTags && Array.isArray(importedData.globalTags)) {
+                globalTags = importedData.globalTags.slice();
+              } else if (importedData.knownTags && Array.isArray(importedData.knownTags)) {
+                globalTags = importedData.knownTags.slice();
               }
 
               globalTagColors =
                 importedData.globalTagColors &&
                 typeof importedData.globalTagColors === "object"
-                  ? importedData.globalTagColors
+                  ? Object.assign({}, importedData.globalTagColors)
                   : {};
-
-              saveGlobalTags();
-              saveGlobalTagColors();
 
               if (importedData.tagGroups && Array.isArray(importedData.tagGroups)) {
                 tagGroups = importedData.tagGroups;
               } else {
                 loadTagGroups();
               }
+
+              var restoredTagSet = new Set(globalTags);
+              if (Array.isArray(tagGroups)) {
+                tagGroups.forEach(function (g) {
+                  if (g && Array.isArray(g.tags)) {
+                    g.tags.forEach(function (t) {
+                      if (t && !restoredTagSet.has(t)) {
+                        restoredTagSet.add(t);
+                        globalTags.push(t);
+                      }
+                    });
+                  }
+                });
+              }
+              if (Array.isArray(trades)) {
+                trades.forEach(function (tr) {
+                  if (tr && Array.isArray(tr.tags)) {
+                    tr.tags.forEach(function (t) {
+                      if (t && !restoredTagSet.has(t)) {
+                        restoredTagSet.add(t);
+                        globalTags.push(t);
+                      }
+                    });
+                  }
+                });
+              }
+
+              saveGlobalTags();
+              saveGlobalTagColors();
               saveTagGroups();
 
               if (importedData.commissionRules) {
@@ -12006,6 +12455,10 @@
               saveData();
               if (typeof renderAccounts === "function") renderAccounts();
               if (typeof renderFilterDropdowns === "function") renderFilterDropdowns();
+              if (typeof renderGlobalTagManager === "function") renderGlobalTagManager();
+              if (typeof renderTagGroupsManagement === "function") renderTagGroupsManagement();
+              if (typeof renderTagFilterOptions === "function") renderTagFilterOptions();
+              if (typeof renderAnalyticsView === "function" && activeTab === "analytics") renderAnalyticsView();
               updateUI();
               alert("Backup succesvol geïmporteerd!");
             } else {
