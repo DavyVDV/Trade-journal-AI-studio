@@ -11802,13 +11802,7 @@
                     return "Trade #" + xVal + dateStr;
                   },
                   label: function (ctx) {
-                    var raw = ctx.raw;
-                    var label = ctx.dataset.label + ": " + fmtUSD(ctx.parsed.y);
-                    if (raw && raw.trade) {
-                      var tradePnl = (raw.trade.pnl || 0) - (raw.trade.fee || 0);
-                      label += " (Trade PnL: " + (tradePnl >= 0 ? "+" : "") + fmtUSD(tradePnl) + ")";
-                    }
-                    return label;
+                    return ctx.dataset.label + ": " + fmtUSD(ctx.parsed.y);
                   },
                 },
               },
