@@ -5189,20 +5189,6 @@
           >
             [ REMOVE TRADE ]
           </button>
-          <div class="flex gap-2">
-            <button
-              onclick="closeModal()"
-              class="px-3 py-1 bg-terminal-input border border-terminal rounded-sm hover:bg-zinc-800"
-            >
-              CANCEL
-            </button>
-            <button
-              onclick="saveNote()"
-              class="bg-white text-black px-4 py-1 rounded-sm font-semibold hover:bg-zinc-200"
-            >
-              COMMIT
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -6968,7 +6954,81 @@
       }
 
       document.addEventListener("click", function (event) {
-        // Menus no longer close by clicking outside
+        var target = event.target;
+        if (!target) return;
+
+        // 1. Top Right Menu (dataMenuDropdown & dataMenuDropdownMobile)
+        var insideDataMenu = target.closest && (
+          target.closest("#dataMenuDropdown") ||
+          target.closest('[data-dropdown-trigger="dataMenuDropdown"]')
+        );
+        if (!insideDataMenu) {
+          var dataDd = document.getElementById("dataMenuDropdown");
+          if (dataDd && !dataDd.classList.contains("hidden")) {
+            dataDd.classList.add("hidden");
+          }
+        }
+
+        var insideDataMenuMobile = target.closest && (
+          target.closest("#dataMenuDropdownMobile") ||
+          target.closest('[data-dropdown-trigger="dataMenuDropdownMobile"]')
+        );
+        if (!insideDataMenuMobile) {
+          var dataDdMobile = document.getElementById("dataMenuDropdownMobile");
+          if (dataDdMobile && !dataDdMobile.classList.contains("hidden")) {
+            dataDdMobile.classList.add("hidden");
+          }
+        }
+
+        // 2. Column Filter Popups & Dropdowns
+        var insideHeaderFilter = target.closest && (
+          target.closest(".header-filter-dropdown") ||
+          target.closest(".column-filter-trigger") ||
+          target.closest("#timeFilterDropdown") ||
+          target.closest("#sideFilterDropdown") ||
+          target.closest("#tagFilterDropdown") ||
+          target.closest("[onclick*='toggleTimeFilter']") ||
+          target.closest("[onclick*='toggleSideFilter']") ||
+          target.closest("[onclick*='toggleTagFilter']")
+        );
+        if (!insideHeaderFilter) {
+          if (typeof removeHeaderFilterDropdowns === "function") {
+            removeHeaderFilterDropdowns();
+          }
+          if (typeof closeColumnFilterDropdowns === "function") {
+            closeColumnFilterDropdowns();
+          }
+          if (typeof activeHeaderFilter !== "undefined" && activeHeaderFilter !== null) {
+            activeHeaderFilter = null;
+            if (typeof renderHeaders === "function") {
+              renderHeaders();
+            }
+          }
+        }
+
+        // 3. Column Visibility Dropdown
+        var insideColDropdown = target.closest && (
+          target.closest("#colDropdown") ||
+          target.closest("#colDropdownBtn")
+        );
+        if (!insideColDropdown) {
+          var colDd = document.getElementById("colDropdown");
+          if (colDd && !colDd.classList.contains("hidden")) {
+            colDd.classList.add("hidden");
+          }
+        }
+
+        // 4. Analytics Logic Dropdown
+        var insideAnalyticsLogic = target.closest && (
+          target.closest("#analyticsLogicDropdownMenu") ||
+          target.closest("#analyticsLogicDropdownBtn")
+        );
+        if (!insideAnalyticsLogic) {
+          var alDd = document.getElementById("analyticsLogicDropdownMenu");
+          if (alDd && !alDd.classList.contains("hidden")) {
+            alDd.classList.add("hidden");
+          }
+        }
       });
 
       function toggleTimeFilter(event, element) {
@@ -9613,6 +9673,13 @@
         document.getElementById("noteModalTitle").innerText = modalDateStr;
         document.getElementById("editTradeId").value = id;
         document.getElementById("editNotes").value = trade.notes || "";
+        var notesEl = document.getElementById("editNotes");
+        if (notesEl && !notesEl.__autoCommitBound) {
+          notesEl.__autoCommitBound = true;
+          notesEl.addEventListener("input", autoCommitTradeEdits);
+          notesEl.addEventListener("change", autoCommitTradeEdits);
+          notesEl.addEventListener("blur", autoCommitTradeEdits);
+        }
         document.getElementById("newTagInput").value = "";
         currentEditTags = trade.tags ? trade.tags.slice() : [];
         renderModalTags();
@@ -9706,6 +9773,7 @@
               return x !== t;
             });
             renderModalTags();
+            autoCommitTradeEdits();
           };
           pill.appendChild(removeButton);
           containerActive.appendChild(pill);
@@ -9763,6 +9831,7 @@
           btn.onclick = function () {
             currentEditTags.push(t);
             renderModalTags();
+            autoCommitTradeEdits();
           };
 
           containerAvailable.appendChild(btn);
@@ -9784,6 +9853,7 @@
         input.value = "";
         updateUI();
         renderModalTags();
+        autoCommitTradeEdits();
       }
 
       function getModalNavigationTrades() {
@@ -9984,6 +10054,7 @@
       }
 
       function closeModal() {
+        autoCommitTradeEdits();
         document.getElementById("noteModal").classList.add("hidden");
         document.removeEventListener("keydown", closeModalOnEsc);
         closeJournalChartWorkspaceSettings();
@@ -10308,21 +10379,29 @@
         lbIsDragging = false;
       }
 
-      function saveNote() {
-        var id = document.getElementById("editTradeId").value;
+      function autoCommitTradeEdits() {
+        var idEl = document.getElementById("editTradeId");
+        if (!idEl || !idEl.value) return;
         var trade = trades.find(function (t) {
-          return t.id === id;
+          return t.id === idEl.value;
         });
-        if (trade) {
-          trade.notes = document.getElementById("editNotes").value;
-          trade.tags = currentEditTags.slice();
-          updateTradeTagsInRenderedTable(trade);
-          closeModal();
-          runWhenPageIsIdle(function () {
-            saveData({ skipUpdate: true });
-            if (activeTab === "analytics") renderAnalyticsView();
-          }, 1200);
+        if (!trade) return;
+
+        var notesEl = document.getElementById("editNotes");
+        if (notesEl) {
+          trade.notes = notesEl.value;
         }
+        trade.tags = currentEditTags.slice();
+        updateTradeTagsInRenderedTable(trade);
+        scheduleSilentTradeSave();
+        if (activeTab === "analytics") {
+          renderAnalyticsView();
+        }
+      }
+
+      function saveNote() {
+        autoCommitTradeEdits();
+        closeModal();
       }
 
       // ---- INTERSECTIVE MATRIX & POOL PURGE LOGIC ----
