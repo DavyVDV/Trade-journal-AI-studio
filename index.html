@@ -13838,6 +13838,18 @@
         });
       }
 
+      function hideJournalSharedCrosshair() {
+        var vertical = document.getElementById("journalCrosshairVertical");
+        var horizontal = document.getElementById("journalCrosshairHorizontal");
+        var priceLabel = document.getElementById("journalCrosshairPriceLabel");
+        var timeLabel = document.getElementById("journalCrosshairTimeLabel");
+        if (vertical) vertical.style.display = "none";
+        if (horizontal) horizontal.style.display = "none";
+        if (priceLabel) priceLabel.style.display = "none";
+        if (timeLabel) timeLabel.style.display = "none";
+        hideAllJournalSyncLines();
+      }
+
       function clearJournalSynchronizedCrosshair() {
         journalCrosshairSyncing = true;
         journalCrosshairActiveChart = null;
@@ -13848,14 +13860,36 @@
         journalCrosshairSyncing = false;
       }
 
+      function isJournalPaneElementVisible(el) {
+        if (!el) return false;
+        var r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && el.offsetParent !== null && window.getComputedStyle(el).display !== "none" && window.getComputedStyle(el).visibility !== "hidden";
+      }
+
       function synchronizeJournalCrosshair(sourceChart, time, sourcePrice, sourceIsCvd) {
+        if (journalMaximizedPanelIndex !== null) {
+          hideAllJournalSyncLines();
+          getJournalCrosshairTargets().forEach(function (target) {
+            if (target.chart !== sourceChart) {
+              try { target.chart.clearCrosshairPosition(); } catch (error) {}
+            }
+          });
+          return;
+        }
         var workspace = getJournalChartWorkspace();
-        if (!workspace.syncCrosshair || journalCrosshairSyncing || !Number.isFinite(Number(time))) return;
+        if (!workspace.syncCrosshair || journalCrosshairSyncing || !Number.isFinite(Number(time))) {
+          hideAllJournalSyncLines();
+          return;
+        }
         journalCrosshairSyncing = true;
         journalCrosshairActiveChart = sourceChart;
         hideJournalSyncLine(sourceChart);
         getJournalCrosshairTargets().forEach(function (target) {
           if (target.chart === sourceChart) return;
+          if (!isJournalPaneElementVisible(target.paneElement)) {
+            hideJournalSyncLine(target.chart);
+            return;
+          }
           var bar = findNearestJournalCrosshairBar(target.data, time);
           if (!bar) { hideJournalSyncLine(target.chart); return; }
           var value = !sourceIsCvd && !target.isCvd && Number.isFinite(Number(sourcePrice)) ? Number(sourcePrice) : Number(bar.close);
@@ -14013,6 +14047,9 @@
               timeLabel2.style.display = "none";
             }
             return;
+          }
+          if (journalMaximizedPanelIndex !== null && journalMaximizedPanelIndex > 0) {
+            return hideJournalSharedCrosshair();
           }
           var stageAreaMain = document.getElementById("journalChartStageArea") || container;
           var containerBounds = stageAreaMain.getBoundingClientRect();
@@ -15718,6 +15755,7 @@
       }
 
       function disposeJournalSecondaryCharts() {
+        if (typeof hideAllJournalSyncLines === "function") hideAllJournalSyncLines();
         journalSecondaryCharts.forEach(function (panel) {
           try { if (panel.chart) panel.chart.remove(); } catch (error) {}
           try { if (panel.cvdChart) panel.cvdChart.remove(); } catch (error) {}
@@ -15756,26 +15794,128 @@
         return Math.max(74, Math.min(cellHeight * (panel.cvdHeightRatio || .3), cellHeight - 130));
       }
 
+      var journalMaximizedPanelIndex = null;
+
+      function toggleJournalMaximizedChart(clientX, clientY) {
+        var trade = getCurrentJournalChartTrade();
+        var workspace = trade ? getJournalChartWorkspace(trade) : null;
+        if (!workspace || workspace.count <= 1) {
+          journalMaximizedPanelIndex = null;
+          return;
+        }
+
+        var clickedIndex = findJournalPanelIndexAtPoint(clientX, clientY);
+        if (journalMaximizedPanelIndex !== null) {
+          journalMaximizedPanelIndex = null;
+        } else {
+          journalMaximizedPanelIndex = clickedIndex;
+          setJournalActivePanel(clickedIndex);
+        }
+
+        hideJournalSharedCrosshair();
+        clearJournalSynchronizedCrosshair();
+        hideAllJournalSyncLines();
+        refreshJournalChartWorkspaceLayout();
+      }
+
+      function refreshJournalChartWorkspaceLayout() {
+        if (!currentRiskRewardTrade) return;
+        var workspace = currentJournalRenderableWorkspace || getJournalChartWorkspace(currentRiskRewardTrade);
+        if (!workspace) return;
+        var cells = applyJournalChartWorkspaceGeometry(workspace);
+        if (!cells.length) return;
+        if (workspace.count > 1) {
+          var source = prepareJournalChartDataForTrade((globalChartData && globalChartData.length) ? globalChartData : currentRiskRewardTrade.chartData, currentRiskRewardTrade);
+          renderJournalSecondaryCharts(workspace, source, currentRiskRewardTrade, cells);
+        }
+        resizeJournalTradeChartPanes();
+        syncJournalChartPriceScales();
+        scheduleJournalFootprintRender();
+      }
+
+      function initJournalChartStageAltClick() {
+        var stageArea = document.getElementById("journalChartStageArea");
+        if (!stageArea || stageArea.dataset.altClickBound) return;
+        stageArea.dataset.altClickBound = "true";
+
+        stageArea.addEventListener("pointerdown", function (event) {
+          if (event.altKey && (event.button === 0 || event.buttons === 1)) {
+            if (event.target.closest("button, select, input, .chart-settings-window, .bt-vertical-toolbar")) {
+              return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            toggleJournalMaximizedChart(event.clientX, event.clientY);
+          }
+        }, true);
+
+        stageArea.addEventListener("click", function (event) {
+          if (event.altKey) {
+            if (event.target.closest("button, select, input, .chart-settings-window, .bt-vertical-toolbar")) {
+              return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        }, true);
+      }
+
       function applyJournalChartWorkspaceGeometry(workspace) {
         var container = document.getElementById("journalChartStageArea") || document.getElementById("chartDataPreviewContainer");
         var pricePane = document.getElementById("tradePriceChartPane");
         var cvdPane = document.getElementById("tradeCvdPane");
         if (!container || !pricePane || !cvdPane || !container.clientWidth || !container.clientHeight) return [];
-        var cells = getJournalChartGridCells(workspace.count, container.clientWidth, container.clientHeight);
+
+        if (journalMaximizedPanelIndex !== null && journalMaximizedPanelIndex >= workspace.count) {
+          journalMaximizedPanelIndex = null;
+        }
+
+        var cells = [];
+        if (journalMaximizedPanelIndex !== null) {
+          for (var i = 0; i < workspace.count; i++) {
+            if (i === journalMaximizedPanelIndex) {
+              cells.push({
+                left: 0,
+                top: 0,
+                width: container.clientWidth,
+                height: container.clientHeight,
+                hidden: false
+              });
+            } else {
+              cells.push({
+                left: 0,
+                top: 0,
+                width: 0,
+                height: 0,
+                hidden: true
+              });
+            }
+          }
+        } else {
+          cells = getJournalChartGridCells(workspace.count, container.clientWidth, container.clientHeight);
+        }
+
         var primary = cells[0];
-        var primaryShowsCvd = workspace.showCvd && workspace.panels[0].showCvd !== false;
-        var cvdHeight = primaryShowsCvd ? getJournalCvdPanelHeight(primary.height, workspace, 0) : 0;
-        var priceHeight = primary.height - cvdHeight;
-        [["left", primary.left + "px"], ["top", primary.top + "px"], ["width", primary.width + "px"], ["height", priceHeight + "px"], ["right", "auto"], ["bottom", "auto"]].forEach(function (item) { pricePane.style.setProperty(item[0], item[1], "important"); });
-        [["left", primary.left + "px"], ["top", (primary.top + priceHeight) + "px"], ["width", primary.width + "px"], ["height", cvdHeight + "px"], ["right", "auto"], ["bottom", "auto"]].forEach(function (item) { cvdPane.style.setProperty(item[0], item[1], "important"); });
-        cvdPane.classList.toggle("hidden", !primaryShowsCvd);
-        pricePane.classList.toggle("has-cvd", primaryShowsCvd);
-        pricePane.classList.toggle("time-scale-active", !primaryShowsCvd);
-        cvdPane.classList.toggle("time-scale-active", primaryShowsCvd);
-        var handle = document.getElementById("tradeCvdResizeHandle");
-        if (handle) handle.classList.toggle("hidden", !primaryShowsCvd);
-        if (currentLwChart) currentLwChart.applyOptions({ timeScale: { visible: !primaryShowsCvd, borderColor: "rgba(148, 163, 184, .22)" }, rightPriceScale: { borderColor: "rgba(148, 163, 184, .22)" } });
-        if (currentTradeCvdChart && primaryShowsCvd) currentTradeCvdChart.applyOptions({ timeScale: { visible: true, borderColor: "rgba(148, 163, 184, .22)" }, rightPriceScale: { borderColor: "rgba(148, 163, 184, .22)" } });
+        if (primary.hidden) {
+          pricePane.style.setProperty("display", "none", "important");
+          cvdPane.style.setProperty("display", "none", "important");
+        } else {
+          pricePane.style.removeProperty("display");
+          cvdPane.style.removeProperty("display");
+          var primaryShowsCvd = workspace.showCvd && workspace.panels[0].showCvd !== false;
+          var cvdHeight = primaryShowsCvd ? getJournalCvdPanelHeight(primary.height, workspace, 0) : 0;
+          var priceHeight = primary.height - cvdHeight;
+          [["left", primary.left + "px"], ["top", primary.top + "px"], ["width", primary.width + "px"], ["height", priceHeight + "px"], ["right", "auto"], ["bottom", "auto"]].forEach(function (item) { pricePane.style.setProperty(item[0], item[1], "important"); });
+          [["left", primary.left + "px"], ["top", (primary.top + priceHeight) + "px"], ["width", primary.width + "px"], ["height", cvdHeight + "px"], ["right", "auto"], ["bottom", "auto"]].forEach(function (item) { cvdPane.style.setProperty(item[0], item[1], "important"); });
+          cvdPane.classList.toggle("hidden", !primaryShowsCvd);
+          pricePane.classList.toggle("has-cvd", primaryShowsCvd);
+          pricePane.classList.toggle("time-scale-active", !primaryShowsCvd);
+          cvdPane.classList.toggle("time-scale-active", primaryShowsCvd);
+          var handle = document.getElementById("tradeCvdResizeHandle");
+          if (handle) handle.classList.toggle("hidden", !primaryShowsCvd);
+          if (currentLwChart) currentLwChart.applyOptions({ timeScale: { visible: !primaryShowsCvd, borderColor: "rgba(148, 163, 184, .22)" }, rightPriceScale: { borderColor: "rgba(148, 163, 184, .22)" } });
+          if (currentTradeCvdChart && primaryShowsCvd) currentTradeCvdChart.applyOptions({ timeScale: { visible: true, borderColor: "rgba(148, 163, 184, .22)" }, rightPriceScale: { borderColor: "rgba(148, 163, 184, .22)" } });
+        }
         return cells;
       }
 
@@ -15897,8 +16037,9 @@
         if (!layer || workspace.count <= 1) return;
         for (var panelIndex = 1; panelIndex < workspace.count; panelIndex++) {
           (function (index) {
-            var config = workspace.panels[index];
             var cell = cells[index];
+            if (!cell || cell.hidden) return;
+            var config = workspace.panels[index];
             var data = aggregateJournalChartData(sourceData, config.timeframe);
             var panelShowsCvd = workspace.showCvd && config.showCvd !== false;
             var cvdHeight = panelShowsCvd ? getJournalCvdPanelHeight(cell.height, workspace, index) : 0;
@@ -16088,8 +16229,39 @@
       function resizeJournalTradeChartPanes() {
         var priceDiv = document.getElementById("lightweightChartContainer");
         var cvdDiv = document.getElementById("tradeCvdChart");
-        if (currentLwChart && priceDiv && priceDiv.clientWidth && priceDiv.clientHeight) currentLwChart.resize(priceDiv.clientWidth, priceDiv.clientHeight);
-        if (currentTradeCvdChart && cvdDiv && cvdDiv.clientWidth && cvdDiv.clientHeight) currentTradeCvdChart.resize(cvdDiv.clientWidth, cvdDiv.clientHeight);
+        var cvdPane = document.getElementById("tradeCvdPane");
+        if (currentLwChart && priceDiv && priceDiv.clientWidth > 0 && priceDiv.clientHeight > 0) {
+          currentLwChart.resize(priceDiv.clientWidth, priceDiv.clientHeight);
+        }
+        if (currentTradeCvdChart && (cvdDiv || cvdPane)) {
+          var cvdWidth = (cvdDiv && cvdDiv.clientWidth) || (cvdPane && cvdPane.clientWidth) || 0;
+          var cvdHeight = (cvdDiv && cvdDiv.clientHeight) || (cvdPane && cvdPane.clientHeight) || 0;
+          if (cvdWidth > 0 && cvdHeight > 0) {
+            currentTradeCvdChart.resize(cvdWidth, cvdHeight);
+          }
+        }
+        if (currentLwChart && currentTradeCvdChart) {
+          var mainRange = currentLwChart.timeScale().getVisibleLogicalRange();
+          if (mainRange) currentTradeCvdChart.timeScale().setVisibleLogicalRange(mainRange);
+        }
+        if (Array.isArray(journalSecondaryCharts)) {
+          journalSecondaryCharts.forEach(function (rec) {
+            if (rec.chart && rec.priceElement) {
+              var pW = rec.priceElement.clientWidth;
+              var pH = rec.priceElement.clientHeight;
+              if (pW > 0 && pH > 0) rec.chart.resize(pW, pH);
+            }
+            if (rec.cvdChart && rec.cvdElement) {
+              var cW = rec.cvdElement.clientWidth;
+              var cH = rec.cvdElement.clientHeight;
+              if (cW > 0 && cH > 0) rec.cvdChart.resize(cW, cH);
+            }
+            if (rec.chart && rec.cvdChart) {
+              var secRange = rec.chart.timeScale().getVisibleLogicalRange();
+              if (secRange) rec.cvdChart.timeScale().setVisibleLogicalRange(secRange);
+            }
+          });
+        }
         syncJournalChartPriceScales();
         renderJournalChartDrawings();
         scheduleRiskRewardOverlayRender();
@@ -17494,6 +17666,7 @@
       }
 
       function renderLightweightChart(trade) {
+        initJournalChartStageAltClick();
         var container = document.getElementById("chartDataPreviewContainer");
         var chartDiv = document.getElementById("lightweightChartContainer");
         
