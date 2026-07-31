@@ -14286,42 +14286,46 @@
         return trades.find(function (trade) { return String(trade.id) === String(id); }) || currentRiskRewardTrade;
       }
 
-      function getJournalChartDrawings() {
+      function getJournalChartDrawings(panelIndex) {
         var trade = getCurrentJournalChartTrade();
         if (!trade) return [];
-        if (journalActivePanelIndex === 0) {
+        var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
+        if (idx === 0) {
           if (!Array.isArray(trade.chartDrawings)) trade.chartDrawings = [];
           return trade.chartDrawings;
         }
         var workspace = getJournalChartWorkspace(trade);
-        var panel = workspace.panels && workspace.panels[journalActivePanelIndex];
+        var panel = workspace.panels && workspace.panels[idx];
         if (!panel) return [];
         if (!Array.isArray(panel.chartDrawings)) panel.chartDrawings = [];
         return panel.chartDrawings;
       }
 
-      function persistJournalChartDrawings() {
+      function persistJournalChartDrawings(panelIndex) {
         var trade = getCurrentJournalChartTrade();
-        if (trade && journalActivePanelIndex > 0) {
+        var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
+        if (trade && idx > 0) {
           var workspace = getJournalChartWorkspace(trade);
-          if (workspace.panels && workspace.panels[journalActivePanelIndex]) {
+          if (workspace.panels && workspace.panels[idx]) {
             trade.chartWorkspace = workspace;
           }
         }
         saveData({ skipUpdate: true });
       }
 
-      function getJournalChartHistory() {
+      function getJournalChartHistory(panelIndex) {
         var trade = getCurrentJournalChartTrade();
         if (!trade) return [];
-        var key = String(trade.id) + "_p" + journalActivePanelIndex;
+        var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
+        var key = String(trade.id) + "_p" + idx;
         if (!Array.isArray(journalChartHistoryByTrade[key])) journalChartHistoryByTrade[key] = [];
         return journalChartHistoryByTrade[key];
       }
 
-      function pushJournalChartHistory() {
-        var history = getJournalChartHistory();
-        var snapshot = JSON.stringify(getJournalChartDrawings());
+      function pushJournalChartHistory(panelIndex) {
+        var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
+        var history = getJournalChartHistory(idx);
+        var snapshot = JSON.stringify(getJournalChartDrawings(idx));
         if (!history.length || history[history.length - 1] !== snapshot) history.push(snapshot);
         if (history.length > 30) history.shift();
       }
@@ -14612,6 +14616,14 @@
           canvas.style.pointerEvents = "auto";
           canvas.style.cursor = journalChartTool === "cursor" ? "default" : "crosshair";
         }
+        if (Array.isArray(journalSecondaryCharts)) {
+          journalSecondaryCharts.forEach(function (rec) {
+            if (rec.drawingCanvas) {
+              rec.drawingCanvas.style.pointerEvents = "auto";
+              rec.drawingCanvas.style.cursor = journalChartTool === "cursor" ? "default" : "crosshair";
+            }
+          });
+        }
         renderJournalChartDrawings();
       }
 
@@ -14632,8 +14644,16 @@
         return trade && trade.chartToolColor ? trade.chartToolColor : "#60a5fa";
       }
 
-      function getJournalActiveChartContext() {
-        if (journalActivePanelIndex === 0) {
+      function getJournalChartCanvas(panelIndex) {
+        var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
+        if (idx === 0) return document.getElementById("journalChartDrawingCanvas");
+        var record = journalSecondaryCharts.find(function (p) { return p.panelIndex === idx; });
+        return (record && record.drawingCanvas) ? record.drawingCanvas : document.getElementById("journalChartDrawingCanvas");
+      }
+
+      function getJournalChartContextForPanel(panelIndex) {
+        var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
+        if (idx === 0) {
           return {
             chart: currentLwChart,
             series: currentLwSeries,
@@ -14641,7 +14661,7 @@
             pricePane: document.getElementById("tradePriceChartPane")
           };
         }
-        var record = journalSecondaryCharts.find(function (p) { return p.panelIndex === journalActivePanelIndex; });
+        var record = journalSecondaryCharts.find(function (p) { return p.panelIndex === idx; });
         if (record) {
           return {
             chart: record.chart,
@@ -14658,10 +14678,15 @@
         };
       }
 
-      function journalChartPoint(event) {
-        var ctx = getJournalActiveChartContext();
+      function getJournalActiveChartContext() {
+        return getJournalChartContextForPanel(journalActivePanelIndex);
+      }
+
+      function journalChartPoint(event, panelIndex) {
+        var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
+        var ctx = getJournalChartContextForPanel(idx);
         if (!ctx.chart || !ctx.series) return null;
-        var canvas = document.getElementById("journalChartDrawingCanvas");
+        var canvas = (event && event.currentTarget && event.currentTarget.tagName === "CANVAS") ? event.currentTarget : getJournalChartCanvas(idx);
         if (!canvas) return null;
         var bounds = canvas.getBoundingClientRect();
         var x = event.clientX - bounds.left;
@@ -14681,7 +14706,7 @@
       }
 
       function journalChartEventCoordinates(event) {
-        var canvas = document.getElementById("journalChartDrawingCanvas");
+        var canvas = (event && event.currentTarget && event.currentTarget.tagName === "CANVAS") ? event.currentTarget : getJournalChartCanvas(journalActivePanelIndex);
         if (!canvas) return null;
         var bounds = canvas.getBoundingClientRect();
         return { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
@@ -14869,8 +14894,8 @@
         }, true);
       }
 
-      function journalChartCoordinates(point) {
-        var ctx = getJournalActiveChartContext();
+      function journalChartCoordinates(point, panelIndex) {
+        var ctx = getJournalChartContextForPanel(panelIndex);
         if (!point || !ctx.chart || !ctx.series) return null;
         var x = ctx.chart.timeScale().timeToCoordinate(Number(point.time));
         var y = ctx.series.priceToCoordinate(Number(point.price));
@@ -14885,9 +14910,12 @@
         return Math.hypot(x - (start.x + t * dx), y - (start.y + t * dy));
       }
 
-      function hitTestJournalChartDrawing(x, y) {
-        var ctx = getJournalActiveChartContext();
-        var drawings = getJournalChartDrawings();
+      function hitTestJournalChartDrawing(x, y, panelIndex) {
+        var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
+        var ctx = getJournalChartContextForPanel(idx);
+        var drawings = getJournalChartDrawings(idx);
+        var canvas = getJournalChartCanvas(idx);
+        var canvasWidth = canvas ? canvas.clientWidth : 800;
         for (var i = drawings.length - 1; i >= 0; i--) {
           var drawing = drawings[i];
           if (drawing.type === "horizontal") {
@@ -14895,8 +14923,8 @@
             if (horizontalY != null && Math.abs(y - horizontalY) < 7) return i;
             continue;
           }
-          var start = journalChartCoordinates(drawing.start || drawing.point);
-          var end = journalChartCoordinates(drawing.end || drawing.point);
+          var start = journalChartCoordinates(drawing.start || drawing.point, idx);
+          var end = journalChartCoordinates(drawing.end || drawing.point, idx);
           if (!start || !end) continue;
           if (drawing.type === "vertical") {
             if (Math.abs(x - start.x) < 7) return i;
@@ -14905,7 +14933,7 @@
           if (drawing.type === "fib") {
             var fibStyle = journalChartDrawingStyle(drawing);
             var fibLeft = fibStyle.extendLeft ? 0 : Math.min(start.x, end.x);
-            var fibRight = fibStyle.extendRight ? document.getElementById("journalChartDrawingCanvas").clientWidth : Math.max(start.x, end.x);
+            var fibRight = fibStyle.extendRight ? canvasWidth : Math.max(start.x, end.x);
             var fibLevels = fibStyle.fibLevels || [0, .236, .382, .5, .618, .786, 1];
             for (var levelIndex = 0; levelIndex < fibLevels.length; levelIndex++) {
               var fibY = start.y + (end.y - start.y) * fibLevels[levelIndex];
@@ -14927,10 +14955,11 @@
         context.beginPath(); context.arc(point.x, point.y, 4, 0, Math.PI * 2); context.fill(); context.stroke();
       }
 
-      function getJournalChartResizeHandles(drawing) {
+      function getJournalChartResizeHandles(drawing, panelIndex) {
         if (!drawing) return [];
-        var start = journalChartCoordinates(drawing.start || drawing.point);
-        var end = journalChartCoordinates(drawing.end || drawing.point);
+        var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
+        var start = journalChartCoordinates(drawing.start || drawing.point, idx);
+        var end = journalChartCoordinates(drawing.end || drawing.point, idx);
         if (!start || !end) return [];
         if (drawing.type === "rectangle") {
           var left = Math.min(start.x, end.x), right = Math.max(start.x, end.x);
@@ -14946,8 +14975,8 @@
         return [];
       }
 
-      function hitTestJournalChartResizeHandle(drawing, x, y) {
-        var handles = getJournalChartResizeHandles(drawing);
+      function hitTestJournalChartResizeHandle(drawing, x, y, panelIndex) {
+        var handles = getJournalChartResizeHandles(drawing, panelIndex);
         for (var i = 0; i < handles.length; i++) {
           if (Math.hypot(x - handles[i].x, y - handles[i].y) <= 10) return handles[i].name;
         }
@@ -14974,11 +15003,12 @@
         return resized;
       }
 
-      function renderJournalChartDrawings() {
-        var canvas = document.getElementById("journalChartDrawingCanvas");
-        var ctx = getJournalActiveChartContext();
+      function renderJournalChartDrawingsForPanel(panelIndex) {
+        var canvas = getJournalChartCanvas(panelIndex);
+        var ctx = getJournalChartContextForPanel(panelIndex);
         if (!canvas || !ctx.chart || !ctx.series) return;
         var bounds = canvas.getBoundingClientRect();
+        if (!bounds || bounds.width <= 0 || bounds.height <= 0) return;
         var ratio = window.devicePixelRatio || 1;
         if (canvas.width !== Math.round(bounds.width * ratio) || canvas.height !== Math.round(bounds.height * ratio)) {
           canvas.width = Math.round(bounds.width * ratio);
@@ -14988,10 +15018,13 @@
         if (!context || typeof context.setTransform !== "function") return;
         context.setTransform(ratio, 0, 0, ratio, 0, 0);
         context.clearRect(0, 0, bounds.width, bounds.height);
-        renderJournalVwapBandFills(context, bounds);
-        var drawings = getJournalChartDrawings().concat(journalChartDrawingPreview ? [journalChartDrawingPreview] : []);
+        if (panelIndex === 0) {
+          renderJournalVwapBandFills(context, bounds);
+        }
+        var isCurrentActivePanel = (panelIndex === journalActivePanelIndex);
+        var drawings = getJournalChartDrawings(panelIndex).concat((isCurrentActivePanel && journalChartDrawingPreview) ? [journalChartDrawingPreview] : []);
         drawings.forEach(function (drawing, index) {
-          var selected = index === journalChartSelectedDrawing && index < getJournalChartDrawings().length;
+          var selected = isCurrentActivePanel && index === journalChartSelectedDrawing && index < getJournalChartDrawings(panelIndex).length;
           var style = journalChartDrawingStyle(drawing);
           var color = style.color;
           context.strokeStyle = color;
@@ -15006,8 +15039,8 @@
             if (selected) drawJournalChartHandle(context, { x: 18, y: horizontalY });
             return;
           }
-          var start = journalChartCoordinates(drawing.start || drawing.point);
-          var end = journalChartCoordinates(drawing.end || drawing.point);
+          var start = journalChartCoordinates(drawing.start || drawing.point, panelIndex);
+          var end = journalChartCoordinates(drawing.end || drawing.point, panelIndex);
           if (!start || !end) return;
           if (drawing.type === "vertical") {
             if (drawStroke) { context.beginPath(); context.moveTo(start.x, 0); context.lineTo(start.x, bounds.height); context.stroke(); }
@@ -15068,8 +15101,9 @@
             }
           }
         });
-        if (journalChartMeasurePreview) {
-          var measureStart = journalChartCoordinates(journalChartMeasurePreview.start), measureEnd = journalChartCoordinates(journalChartMeasurePreview.end);
+        if (isCurrentActivePanel && journalChartMeasurePreview) {
+          var measureStart = journalChartCoordinates(journalChartMeasurePreview.start, panelIndex);
+          var measureEnd = journalChartCoordinates(journalChartMeasurePreview.end, panelIndex);
           if (measureStart && measureEnd) {
             context.setLineDash([4, 4]); context.strokeStyle = "#e2e8f0"; context.lineWidth = 1;
             context.strokeRect(Math.min(measureStart.x, measureEnd.x), Math.min(measureStart.y, measureEnd.y), Math.abs(measureEnd.x - measureStart.x), Math.abs(measureEnd.y - measureStart.y));
@@ -15080,31 +15114,44 @@
         }
       }
 
-      function finishJournalChartDrawing(drawing) {
+      function renderJournalChartDrawings() {
+        renderJournalChartDrawingsForPanel(0);
+        if (Array.isArray(journalSecondaryCharts)) {
+          journalSecondaryCharts.forEach(function (rec) {
+            renderJournalChartDrawingsForPanel(rec.panelIndex);
+          });
+        }
+      }
+
+      function finishJournalChartDrawing(drawing, panelIndex) {
+        var idx = (typeof panelIndex === "number") ? panelIndex : journalActivePanelIndex;
         pushJournalChartHistory();
-        getJournalChartDrawings().push(drawing);
-        journalChartSelectedDrawing = getJournalChartDrawings().length - 1;
+        getJournalChartDrawings(idx).push(drawing);
+        journalChartSelectedDrawing = getJournalChartDrawings(idx).length - 1;
         journalChartDrawingStart = null;
         journalChartDrawingPreview = null;
-        persistJournalChartDrawings();
+        persistJournalChartDrawings(idx);
         if (!journalChartKeepActive) activateJournalChartTool("cursor");
         else renderJournalChartDrawings();
       }
 
-      function bindJournalChartDrawingCanvas() {
-        var canvas = document.getElementById("journalChartDrawingCanvas");
+      function bindJournalChartDrawingCanvas(targetCanvas, targetPanelIndex) {
+        var canvas = targetCanvas || document.getElementById("journalChartDrawingCanvas");
+        var pIndex = (typeof targetPanelIndex === "number") ? targetPanelIndex : 0;
         if (!canvas || canvas.dataset.bound) return;
         canvas.dataset.bound = "true";
         canvas.addEventListener("contextmenu", function (event) {
-          var point = journalChartPoint(event); if (!point) return;
-          var index = hitTestJournalChartDrawing(point.x, point.y);
+          setJournalActivePanel(pIndex);
+          var point = journalChartPoint(event, pIndex); if (!point) return;
+          var index = hitTestJournalChartDrawing(point.x, point.y, pIndex);
           if (index < 0) return;
           journalChartSelectedDrawing = index;
-          openJournalChartToolSettings(event, getJournalChartDrawings()[index].type, index);
+          openJournalChartToolSettings(event, getJournalChartDrawings(pIndex)[index].type, index);
           renderJournalChartDrawings();
         });
         canvas.addEventListener("wheel", function (event) {
-          var ctx = getJournalActiveChartContext();
+          setJournalActivePanel(pIndex);
+          var ctx = getJournalChartContextForPanel(pIndex);
           if (!ctx || !ctx.chart) return;
           event.preventDefault();
           var range = ctx.chart.timeScale().getVisibleLogicalRange(); if (!range) return;
@@ -15113,8 +15160,9 @@
           ctx.chart.timeScale().setVisibleLogicalRange({ from: anchor - nextSpan * ratio, to: anchor + nextSpan * (1 - ratio) });
         }, { passive: false });
         canvas.addEventListener("pointerdown", function (event) {
+          setJournalActivePanel(pIndex);
           var coordinates = journalChartEventCoordinates(event);
-          var point = journalChartPoint(event);
+          var point = journalChartPoint(event, pIndex);
           if (!coordinates) return;
           canvas.setPointerCapture(event.pointerId);
           if (journalChartMeasure || event.shiftKey) {
@@ -15122,20 +15170,20 @@
             journalChartMeasureStart = point; journalChartMeasurePreview = { start: point, end: point }; return;
           }
           if (journalChartTool === "cursor") {
-            var drawings = getJournalChartDrawings();
-            var selectedDrawing = journalChartSelectedDrawing >= 0 ? drawings[journalChartSelectedDrawing] : null;
-            var resizeHandle = point ? hitTestJournalChartResizeHandle(selectedDrawing, coordinates.x, coordinates.y) : null;
+            var drawings = getJournalChartDrawings(pIndex);
+            var selectedDrawing = (journalActivePanelIndex === pIndex && journalChartSelectedDrawing >= 0) ? drawings[journalChartSelectedDrawing] : null;
+            var resizeHandle = point ? hitTestJournalChartResizeHandle(selectedDrawing, coordinates.x, coordinates.y, pIndex) : null;
             if (resizeHandle) {
               pushJournalChartHistory();
               journalChartDragging = { point: point, handle: resizeHandle, original: JSON.parse(JSON.stringify(selectedDrawing)) };
             } else {
-              journalChartSelectedDrawing = point ? hitTestJournalChartDrawing(coordinates.x, coordinates.y) : -1;
+              journalChartSelectedDrawing = point ? hitTestJournalChartDrawing(coordinates.x, coordinates.y, pIndex) : -1;
               if (journalChartSelectedDrawing >= 0) {
                 pushJournalChartHistory();
                 journalChartDragging = { point: point, handle: null, original: JSON.parse(JSON.stringify(drawings[journalChartSelectedDrawing])) };
               }
               else {
-                var ctx = getJournalActiveChartContext();
+                var ctx = getJournalChartContextForPanel(pIndex);
                 var activeChart = ctx ? ctx.chart : currentLwChart;
                 var activeSeries = ctx ? ctx.series : currentLwSeries;
                 if (activeChart && activeSeries) {
@@ -15146,6 +15194,7 @@
                     ? Math.abs(topPrice - bottomPrice) / Math.max(1, canvas.clientHeight)
                     : 0;
                   if (visibleRange) journalChartPan = {
+                    panelIndex: pIndex,
                     chart: activeChart,
                     series: activeSeries,
                     x: coordinates.x,
@@ -15160,25 +15209,25 @@
             renderJournalChartDrawings(); return;
           }
           if (!point) return;
-          if (journalChartTool === "horizontal") return finishJournalChartDrawing({ type: "horizontal", price: point.price, style: getJournalChartToolStyle("horizontal") });
-          if (journalChartTool === "horizontal-ray") return finishJournalChartDrawing({ type: "horizontal-ray", point: point, style: getJournalChartToolStyle("horizontal-ray") });
-          if (journalChartTool === "vertical") return finishJournalChartDrawing({ type: "vertical", point: point, style: getJournalChartToolStyle("vertical") });
+          if (journalChartTool === "horizontal") return finishJournalChartDrawing({ type: "horizontal", price: point.price, style: getJournalChartToolStyle("horizontal") }, pIndex);
+          if (journalChartTool === "horizontal-ray") return finishJournalChartDrawing({ type: "horizontal-ray", point: point, style: getJournalChartToolStyle("horizontal-ray") }, pIndex);
+          if (journalChartTool === "vertical") return finishJournalChartDrawing({ type: "vertical", point: point, style: getJournalChartToolStyle("vertical") }, pIndex);
           if (journalChartTool === "text") {
             var text = window.prompt("Tekst", "");
-            if (text) finishJournalChartDrawing({ type: "text", point: point, text: text.slice(0, 120), style: getJournalChartToolStyle("text") });
+            if (text) finishJournalChartDrawing({ type: "text", point: point, text: text.slice(0, 120), style: getJournalChartToolStyle("text") }, pIndex);
             return;
           }
           journalChartDrawingStart = point;
         });
         canvas.addEventListener("pointermove", function (event) {
           var coordinates = journalChartEventCoordinates(event);
-          var point = journalChartPoint(event);
+          var point = journalChartPoint(event, pIndex);
           if (!coordinates) return;
           if (journalChartMeasureStart) {
             if (!point) return;
             journalChartMeasurePreview = { start: journalChartMeasureStart, end: point };
-          } else if (journalChartPan) {
-            var ctx = getJournalActiveChartContext();
+          } else if (journalChartPan && journalChartPan.panelIndex === pIndex) {
+            var ctx = getJournalChartContextForPanel(pIndex);
             var panChart = journalChartPan.chart || (ctx ? ctx.chart : currentLwChart);
             var span = journalChartPan.range.to - journalChartPan.range.from;
             var shift = (journalChartPan.x - coordinates.x) * span / Math.max(1, canvas.clientWidth);
@@ -15189,20 +15238,20 @@
               journalChartPricePanOffset = journalChartPan.priceOffset + (coordinates.y - journalChartPan.y) * journalChartPan.pricePerPixel;
               applyJournalChartPricePan();
             }
-          } else if (journalChartDragging && journalChartSelectedDrawing >= 0) {
+          } else if (journalChartDragging && journalActivePanelIndex === pIndex && journalChartSelectedDrawing >= 0) {
             if (!point) return;
             var original = journalChartDragging.original;
             if (journalChartDragging.handle) {
-              getJournalChartDrawings()[journalChartSelectedDrawing] = resizeJournalChartDrawing(original, journalChartDragging.handle, point);
+              getJournalChartDrawings(pIndex)[journalChartSelectedDrawing] = resizeJournalChartDrawing(original, journalChartDragging.handle, point);
             } else {
               var deltaTime = point.time - journalChartDragging.point.time;
               var deltaPrice = point.price - journalChartDragging.point.price;
               var moved = JSON.parse(JSON.stringify(original));
               ["start", "end", "point"].forEach(function (key) { if (moved[key]) { moved[key].time += deltaTime; moved[key].price += deltaPrice; } });
               if (Number.isFinite(moved.price)) moved.price += deltaPrice;
-              getJournalChartDrawings()[journalChartSelectedDrawing] = moved;
+              getJournalChartDrawings(pIndex)[journalChartSelectedDrawing] = moved;
             }
-          } else if (journalChartDrawingStart) {
+          } else if (journalChartDrawingStart && journalActivePanelIndex === pIndex) {
             if (!point) return;
             journalChartDrawingPreview = { type: journalChartTool, start: journalChartDrawingStart, end: point, style: getJournalChartToolStyle(journalChartTool) };
           }
@@ -15211,9 +15260,9 @@
         canvas.addEventListener("pointerup", function (event) {
           if (journalChartMeasureStart) { journalChartMeasureStart = null; journalChartMeasurePreview = null; renderJournalChartDrawings(); return; }
           if (journalChartPan) { journalChartPan = null; return; }
-          if (journalChartDragging) { journalChartDragging = null; persistJournalChartDrawings(); return; }
-          var point = journalChartPoint(event);
-          if (journalChartDrawingStart && point) finishJournalChartDrawing({ type: journalChartTool, start: journalChartDrawingStart, end: point, style: getJournalChartToolStyle(journalChartTool) });
+          if (journalChartDragging) { journalChartDragging = null; persistJournalChartDrawings(pIndex); return; }
+          var point = journalChartPoint(event, pIndex);
+          if (journalChartDrawingStart && point && journalActivePanelIndex === pIndex) finishJournalChartDrawing({ type: journalChartTool, start: journalChartDrawingStart, end: point, style: getJournalChartToolStyle(journalChartTool) }, pIndex);
         });
         canvas.addEventListener("pointercancel", function () {
           journalChartPan = null;
@@ -15483,21 +15532,6 @@
             rec.element.classList.toggle("journal-panel-selected", rec.panelIndex === index);
           }
         });
-
-        // Move drawing canvas & AUTO fit button to the selected chart panel
-        var ctx = typeof getJournalActiveChartContext === "function" ? getJournalActiveChartContext() : null;
-        var targetPane = ctx ? ctx.pricePane : primaryPricePane;
-        var drawingCanvas = document.getElementById("journalChartDrawingCanvas");
-        var autoFitButton = document.getElementById("journalAutoFitButton");
-
-        if (targetPane) {
-          if (drawingCanvas && drawingCanvas.parentElement !== targetPane) {
-            targetPane.appendChild(drawingCanvas);
-          }
-          if (autoFitButton && autoFitButton.parentElement !== targetPane) {
-            targetPane.appendChild(autoFitButton);
-          }
-        }
 
         journalTradeChartTimeframe = tfSec;
         syncJournalTradeChartTimeframeButtons();
@@ -16231,6 +16265,7 @@
             var price = document.createElement("div"); price.className = "journal-secondary-price" + (panelShowsCvd ? " has-cvd" : " time-scale-active"); price.style.top = "0px"; price.style.left = "0px"; price.style.right = "0px"; price.style.height = priceHeight + "px";
             var priceChartDiv = document.createElement("div"); priceChartDiv.className = "absolute inset-0"; price.appendChild(priceChartDiv);
             var footprintCanvas = document.createElement("canvas"); footprintCanvas.className = "journal-footprint-canvas"; price.appendChild(footprintCanvas);
+            var drawingCanvas = document.createElement("canvas"); drawingCanvas.className = "absolute left-0 right-[68px] top-0 bottom-0 z-10"; price.appendChild(drawingCanvas);
             var footprintUnavailable = document.createElement("div"); footprintUnavailable.className = "journal-footprint-unavailable hidden"; footprintUnavailable.textContent = "Footprint vereist tickdata met prijs en aggressorvolume."; price.appendChild(footprintUnavailable);
             var title = document.createElement("div"); title.className = "journal-secondary-title"; title.textContent = formatJournalTradeTimeframe(config.timeframe) + " / " + (config.type === "footprint" ? "FOOTPRINT" : "CANDLES"); price.appendChild(title);
             var autoButton = document.createElement("button"); autoButton.type = "button"; autoButton.className = "journal-panel-auto-button"; autoButton.textContent = "AUTO"; autoButton.onclick = function (event) { event.stopPropagation(); toggleJournalSecondaryAutoScale(index); }; price.appendChild(autoButton);
@@ -16260,7 +16295,7 @@
               lastValueVisible: config.type !== "footprint", priceLineVisible: false, priceFormat: { type: "price", precision: 2, minMove: .25 },
             });
             series.setData(data);
-            var record = { panelIndex: index, element: panel, priceElement: price, cvdElement: cvd, chart: chart, series: series, config: config, data: data, footprintCanvas: footprintCanvas, footprintUnavailable: footprintUnavailable, autoButton: autoButton, cvdChart: null, cvdSeries: null, cvdData: [], cellHeight: cell.height };
+            var record = { panelIndex: index, element: panel, priceElement: price, cvdElement: cvd, chart: chart, series: series, config: config, data: data, footprintCanvas: footprintCanvas, drawingCanvas: drawingCanvas, footprintUnavailable: footprintUnavailable, autoButton: autoButton, cvdChart: null, cvdSeries: null, cvdData: [], cellHeight: cell.height };
             if (panelShowsCvd && cvdChartDiv) {
               var cvdData = buildJournalCvdData(data);
               if (!cvdData.length) {
@@ -16285,6 +16320,7 @@
                 syncJournalChartPriceScales();
                 if (range && !secondaryRangeSyncing) { secondaryRangeSyncing = true; cvdChart.timeScale().setVisibleLogicalRange(range); secondaryRangeSyncing = false; }
                 scheduleJournalFootprintRender();
+                renderJournalChartDrawings();
               });
               cvdChart.timeScale().subscribeVisibleLogicalRangeChange(function (range) {
                 syncJournalChartPriceScales();
@@ -16295,9 +16331,13 @@
               chart.timeScale().subscribeVisibleLogicalRangeChange(function () {
                 syncJournalChartPriceScales();
                 scheduleJournalFootprintRender();
+                renderJournalChartDrawings();
               });
             }
             journalSecondaryCharts.push(record);
+            if (typeof bindJournalChartDrawingCanvas === "function") {
+              bindJournalChartDrawingCanvas(drawingCanvas, index);
+            }
             if (cvdResizeHandle) bindJournalPanelCvdResize(record, cvdResizeHandle);
             updateJournalSecondaryAutoButton(record);
             bindJournalSecondaryScaleControls(record);
@@ -16393,6 +16433,13 @@
         var drawingCanvas = document.getElementById("journalChartDrawingCanvas");
         if (drawingCanvas) {
           drawingCanvas.style.right = maxW + "px";
+        }
+        if (Array.isArray(journalSecondaryCharts)) {
+          journalSecondaryCharts.forEach(function (rec) {
+            if (rec.drawingCanvas) {
+              rec.drawingCanvas.style.right = maxW + "px";
+            }
+          });
         }
 
         if (changed) {
