@@ -5004,6 +5004,7 @@
                       <button class="bt-tool" data-journal-chart-tool="fib" onclick="activateJournalChartTool('fib')" oncontextmenu="openJournalChartToolSettings(event,'fib',-1)" title="Fibonacci retracement"><span class="text-[8px] font-bold">FIB</span></button>
                       <button class="bt-tool" data-journal-chart-tool="arrow" onclick="activateJournalChartTool('arrow')" oncontextmenu="openJournalChartToolSettings(event,'arrow',-1)" title="Pijl"><i class="fas fa-location-arrow"></i></button>
                       <button class="bt-tool" data-journal-chart-tool="text" onclick="activateJournalChartTool('text')" oncontextmenu="openJournalChartToolSettings(event,'text',-1)" title="Tekst"><i class="fas fa-font"></i></button>
+                      <button id="journalLockRrButton" class="bt-tool" onclick="toggleJournalRrLock()" title="RR Tool Ontgrendelen/Vergrendelen (Sleep Entry/TP/SL op grafiek)"><i id="journalLockRrToolbarIcon" class="fas fa-lock text-amber-400"></i></button>
                       <div class="bt-vertical-divider"></div>
                       <label class="bt-tool bt-icon-toggle cursor-pointer relative" title="Tekentool blijven herhalen"><input id="journalKeepToolActive" type="checkbox" onchange="journalChartKeepActive=this.checked" /><i class="fas fa-thumbtack"></i></label>
                       <button id="journalMagnetButton" class="bt-tool" onclick="toggleJournalChartMagnet()" title="Magneet (Ctrl = tijdelijk)"><i class="fas fa-magnet"></i></button>
@@ -13015,7 +13016,182 @@
       var currentTradeCvdChart = null;
       var currentTradeCvdSeries = null;
       var currentRiskRewardTrade = null;
+      var journalRrLocked = true;
       var currentJournalChartData = [];
+
+      function toggleJournalRrLock() {
+        journalRrLocked = !journalRrLocked;
+        updateJournalRrLockUI();
+        scheduleRiskRewardOverlayRender();
+        if (typeof renderJournalChartDrawings === "function") renderJournalChartDrawings();
+      }
+
+      function updateJournalRrLockUI() {
+        var textEl = document.getElementById("journalLockRrText");
+        var iconEl = document.getElementById("journalLockRrIcon");
+        var toolbarIconEl = document.getElementById("journalLockRrToolbarIcon");
+        var btnEl = document.getElementById("journalLockRrOverlayButton");
+        var toolbarBtnEl = document.getElementById("journalLockRrButton");
+
+        if (journalRrLocked) {
+          if (textEl) textEl.textContent = "RR VERGRENDELD";
+          if (iconEl) iconEl.className = "fas fa-lock text-amber-400";
+          if (toolbarIconEl) toolbarIconEl.className = "fas fa-lock text-amber-400";
+          if (btnEl) {
+            btnEl.className = "absolute right-[76px] top-0 z-[52] h-[24px] px-2 border border-[#3a4656] bg-[#16212e] text-[9px] font-bold text-zinc-300 hover:text-white flex items-center gap-1.5 rounded-none transition-colors";
+          }
+          if (toolbarBtnEl) {
+            toolbarBtnEl.classList.remove("border-emerald-500", "bg-emerald-950/40");
+            toolbarBtnEl.title = "RR Tool is nu Vergrendeld (klik om te ontgrendelen)";
+          }
+        } else {
+          if (textEl) textEl.textContent = "RR ONTGRENDELD";
+          if (iconEl) iconEl.className = "fas fa-lock-open text-emerald-400 animate-pulse";
+          if (toolbarIconEl) toolbarIconEl.className = "fas fa-lock-open text-emerald-400 animate-pulse";
+          if (btnEl) {
+            btnEl.className = "absolute right-[76px] top-0 z-[52] h-[24px] px-2 border border-emerald-500 bg-emerald-950/80 text-[9px] font-bold text-emerald-300 flex items-center gap-1.5 rounded-none shadow-lg transition-colors";
+          }
+          if (toolbarBtnEl) {
+            toolbarBtnEl.classList.add("border-emerald-500", "bg-emerald-950/40");
+            toolbarBtnEl.title = "RR Tool is ONTGRENDELD (sleep Entry/TP/SL op grafiek)";
+          }
+        }
+      }
+
+      function bindRrLineDrag(handleEl, handleType, trade) {
+        handleEl.addEventListener("pointerdown", function (event) {
+          if (journalRrLocked) return;
+          event.stopPropagation();
+          event.preventDefault();
+
+          var entryPrice = Number(trade.entry) || 0;
+          var isLong = String(trade.side || "").toLowerCase().indexOf("buy") >= 0 || String(trade.side || "").toLowerCase() === "long";
+          var defaultRDistance = Math.max(entryPrice * 0.003, 0.5);
+          var exitPrice = Number(trade.exit);
+          if (exitPrice && !isNaN(exitPrice) && Math.abs(exitPrice - entryPrice) > (entryPrice * 0.0001)) {
+            var eDist = Math.abs(exitPrice - entryPrice);
+            if (eDist > 0.05) defaultRDistance = eDist;
+          }
+
+          if (trade.sl === undefined || trade.sl === null || trade.sl === "" || isNaN(Number(trade.sl))) {
+            trade.sl = isLong ? (entryPrice - defaultRDistance) : (entryPrice + defaultRDistance);
+          }
+          if (trade.tp === undefined || trade.tp === null || trade.tp === "" || isNaN(Number(trade.tp))) {
+            var slDist = Math.abs(entryPrice - Number(trade.sl));
+            var rDist = slDist > 0.001 ? slDist : defaultRDistance;
+            trade.tp = isLong ? (entryPrice + rDist) : (entryPrice - rDist);
+          }
+
+          activeRrDrag = { handleType: handleType, trade: trade };
+        });
+      }
+
+      var activeRrDrag = null;
+
+      function initGlobalRrDragListeners() {
+        if (window._rrDragBound) return;
+        window._rrDragBound = true;
+
+        window.addEventListener("pointermove", function (e) {
+          if (!activeRrDrag) return;
+          e.preventDefault();
+
+          var pricePane = document.getElementById("tradePriceChartPane");
+          if (!pricePane || !currentLwSeries) return;
+
+          var rect = pricePane.getBoundingClientRect();
+          var yCoord = e.clientY - rect.top;
+          var price = currentLwSeries.coordinateToPrice(yCoord);
+          if (price === null || isNaN(price) || price <= 0) return;
+
+          var step = 0.01;
+          if (price > 1000) step = 0.25;
+          else if (price > 100) step = 0.05;
+          price = Math.round(price / step) * step;
+
+          var trade = activeRrDrag.trade;
+          var handleType = activeRrDrag.handleType;
+          var isLong = String(trade.side || "").toLowerCase().indexOf("buy") >= 0 || String(trade.side || "").toLowerCase() === "long";
+
+          if (handleType === "width") {
+            var mouseX = e.clientX - rect.left;
+            var chartDataToUse = currentJournalChartData && currentJournalChartData.length
+              ? currentJournalChartData
+              : ((globalChartData && globalChartData.length > 0) ? globalChartData : (trade ? trade.chartData : null));
+            var entryTime = trade.time ? toChartTimestampFromLocalDate(trade.time) : null;
+            var entryCandleTime = (entryTime && trade.entry) ? findBestTradeCandleTime(chartDataToUse, entryTime, Number(trade.entry)) : null;
+            var timeScale = currentLwChart ? currentLwChart.timeScale() : null;
+            var startX = (timeScale && entryCandleTime !== null) ? timeScale.timeToCoordinate(entryCandleTime) : null;
+            if (startX === null || isNaN(startX)) {
+              startX = rect.left;
+            }
+            var newWidth = Math.max(mouseX - startX, 30);
+            trade.rrWidthPx = newWidth;
+            if (timeScale) {
+              var newTime = timeScale.coordinateToTime(startX + newWidth);
+              if (newTime) trade.rrEndTime = newTime;
+            }
+            renderRiskRewardOverlay(trade);
+            return;
+          }
+
+          var yCoord = e.clientY - rect.top;
+          var price = currentLwSeries.coordinateToPrice(yCoord);
+          if (price === null || isNaN(price) || price <= 0) return;
+
+          var step = 0.01;
+          if (price > 1000) step = 0.25;
+          else if (price > 100) step = 0.05;
+          price = Math.round(price / step) * step;
+
+          if (handleType === "entry") {
+            trade.entry = price;
+          } else if (handleType === "tp") {
+            trade.tp = price;
+          } else if (handleType === "sl") {
+            trade.sl = price;
+          }
+
+          if (trade.entry && trade.exit) {
+            var diff = isLong ? (trade.exit - trade.entry) : (trade.entry - trade.exit);
+            var vol = Number(trade.volume) || 1;
+            trade.pnl = diff * vol;
+          }
+
+          renderRiskRewardOverlay(trade);
+        }, { passive: false });
+
+        window.addEventListener("pointerup", function () {
+          if (!activeRrDrag) return;
+          var trade = activeRrDrag.trade;
+          activeRrDrag = null;
+
+          if (typeof autoCommitTradeEdits === "function") autoCommitTradeEdits();
+          if (typeof updateTradeTagsInRenderedTable === "function") updateTradeTagsInRenderedTable(trade);
+          if (typeof renderTable === "function") renderTable({ skipAnimation: true });
+
+          var manEntry = document.getElementById("manEntry");
+          if (manEntry && trade.entry) manEntry.value = trade.entry;
+          var manExit = document.getElementById("manExit");
+          if (manExit && trade.exit) manExit.value = trade.exit;
+          var manPnL = document.getElementById("manPnL");
+          if (manPnL && trade.pnl !== undefined) manPnL.value = trade.pnl;
+        });
+
+        window.addEventListener("pointercancel", function () {
+          activeRrDrag = null;
+        });
+      }
+
+      function bindRrLineDrag(handleEl, handleType, trade) {
+        initGlobalRrDragListeners();
+        handleEl.addEventListener("pointerdown", function (event) {
+          if (journalRrLocked) return;
+          event.stopPropagation();
+          event.preventDefault();
+          activeRrDrag = { handleType: handleType, trade: trade };
+        });
+      }
       var currentJournalRenderableWorkspace = null;
       var journalTradeChartTimeframe = 30;
       var riskRewardRenderFrame = null;
@@ -16827,6 +17003,8 @@
         if (!overlay || !currentLwChart || !currentLwSeries || !trade) return;
         currentRiskRewardTrade = trade;
         overlay.innerHTML = "";
+        overlay.style.pointerEvents = journalRrLocked ? "none" : "auto";
+        overlay.style.zIndex = journalRrLocked ? "10" : "40";
 
         var chartDataToUse = currentJournalChartData && currentJournalChartData.length
           ? currentJournalChartData
@@ -16841,17 +17019,47 @@
         var isLong =
           String(trade.side || "").toLowerCase().indexOf("buy") >= 0 ||
           String(trade.side || "").toLowerCase() === "long";
-        var oneR = Math.abs(exitPrice - entryPrice);
+
+        var defaultRDistance = Math.max(entryPrice * 0.003, 0.5);
+        if (exitPrice && !isNaN(exitPrice) && Math.abs(exitPrice - entryPrice) > (entryPrice * 0.0001)) {
+          var eDist = Math.abs(exitPrice - entryPrice);
+          if (eDist > 0.05) defaultRDistance = eDist;
+        }
+
+        var slPrice = (trade.sl !== undefined && trade.sl !== null && trade.sl !== "" && !isNaN(Number(trade.sl)))
+          ? Number(trade.sl)
+          : null;
+        var tpPrice = (trade.tp !== undefined && trade.tp !== null && trade.tp !== "" && !isNaN(Number(trade.tp)))
+          ? Number(trade.tp)
+          : null;
+
+        if (slPrice === null && tpPrice !== null) {
+          var tpDist = Math.abs(tpPrice - entryPrice);
+          var distToUse = tpDist > 0.01 ? tpDist : defaultRDistance;
+          slPrice = isLong ? (entryPrice - distToUse) : (entryPrice + distToUse);
+        } else if (slPrice === null) {
+          slPrice = isLong ? (entryPrice - defaultRDistance) : (entryPrice + defaultRDistance);
+        }
+
+        if (tpPrice === null) {
+          var rDist = Math.abs(entryPrice - slPrice);
+          if (rDist <= 0.001) rDist = defaultRDistance;
+          tpPrice = isLong ? (entryPrice + rDist) : (entryPrice - rDist);
+        }
+
+        var oneR = Math.abs(entryPrice - slPrice);
+        if (isNaN(oneR) || oneR <= 0.001) oneR = defaultRDistance;
+
         var entryCandleTime = findBestTradeCandleTime(chartDataToUse, entryTime, entryPrice);
         var exitCandleTime = exitTime ? findBestTradeCandleTime(chartDataToUse, exitTime, exitPrice) : null;
-        var endTime = exitCandleTime || entryCandleTime + 300;
-        var isBreakEven = isNaN(oneR) || oneR <= Math.max(entryPrice * 0.00001, 0.01);
+        var endTime = trade.rrEndTime || (exitCandleTime || entryCandleTime + 300);
+        var isBreakEven = isNaN(oneR) || (Math.abs(tpPrice - entryPrice) < 0.0001 && Math.abs(slPrice - entryPrice) < 0.0001);
 
         var timeScale = currentLwChart.timeScale();
         var startX = timeScale.timeToCoordinate(entryCandleTime);
         var endX = timeScale.timeToCoordinate(endTime);
         var entryY = currentLwSeries.priceToCoordinate(entryPrice);
-        if ([startX, endX, entryY].some(function (v) { return v === null || isNaN(v); })) {
+        if ([startX, entryY].some(function (v) { return v === null || isNaN(v); })) {
           if (attempt < 8) {
             setTimeout(function () {
               if (currentRiskRewardTrade === trade) renderRiskRewardOverlay(trade, attempt + 1);
@@ -16860,10 +17068,16 @@
           return;
         }
 
-        var left = Math.min(startX, endX);
-        var width = Math.max(Math.abs(endX - startX), 56);
+        var left = startX;
+        var width = 56;
+        if (endX !== null && !isNaN(endX) && Math.abs(endX - startX) >= 5) {
+          width = Math.max(Math.abs(endX - startX), 30);
+          left = Math.min(startX, endX);
+        } else if (trade.rrWidthPx) {
+          width = Math.max(trade.rrWidthPx, 30);
+        }
 
-        if (isBreakEven) {
+        if (isBreakEven && journalRrLocked) {
           var breakEvenScaleSignature = ["be", entryCandleTime, endTime, entryPrice].join("|");
           if (riskRewardScaleSignature !== breakEvenScaleSignature) {
             if (currentRiskRewardTpScaleSeries) {
@@ -16909,9 +17123,6 @@
           return;
         }
 
-        var tpPrice = isLong ? entryPrice + oneR : entryPrice - oneR;
-        var slPrice = isLong ? entryPrice - oneR : entryPrice + oneR;
-
         var scaleSignature = [entryCandleTime, endTime, tpPrice, slPrice].join("|");
         if (riskRewardScaleSignature !== scaleSignature) {
           if (currentRiskRewardTpScaleSeries) {
@@ -16941,9 +17152,9 @@
         }
 
         var rewardTop = Math.min(entryY, tpY);
-        var rewardHeight = Math.max(Math.abs(tpY - entryY), 3);
+        var rewardHeight = Math.max(Math.abs(tpY - entryY), 2);
         var riskTop = Math.min(entryY, slY);
-        var riskHeight = Math.max(Math.abs(slY - entryY), 3);
+        var riskHeight = Math.max(Math.abs(slY - entryY), 2);
 
         function createZone(config, top, height) {
           var zone = document.createElement("div");
@@ -16953,9 +17164,9 @@
           zone.style.top = top + "px";
           zone.style.width = width + "px";
           zone.style.height = height + "px";
-          zone.style.border = config.border;
+          zone.style.border = config.border || "0";
           zone.style.background = config.background;
-          zone.style.boxShadow = config.shadow;
+          zone.style.boxShadow = config.shadow || "none";
           overlay.appendChild(zone);
         }
 
@@ -16985,6 +17196,32 @@
         entryLine.style.top = entryY + "px";
         entryLine.style.width = width + "px";
         overlay.appendChild(entryLine);
+
+        if (!journalRrLocked) {
+          function createDot(x, y, handleType, title, cursor) {
+            var dot = document.createElement("div");
+            dot.className = "rr-drag-dot absolute z-50 w-[8px] h-[8px] bg-cyan-400 border border-white rounded-[2px] shadow-sm transition-transform hover:scale-125 select-none";
+            dot.style.left = (x - 4) + "px";
+            dot.style.top = (y - 4) + "px";
+            dot.style.cursor = cursor || "ns-resize";
+            dot.style.pointerEvents = "auto";
+            dot.title = title;
+            bindRrLineDrag(dot, handleType, trade);
+            overlay.appendChild(dot);
+          }
+
+          // TP handle (top line center)
+          createDot(left + width / 2, tpY, "tp", "Sleep om Take Profit (TP) aan te passen", "ns-resize");
+
+          // Entry handle (middle left)
+          createDot(left, entryY, "entry", "Sleep om Entry Prijs aan te passen", "ns-resize");
+
+          // Width handle (middle right)
+          createDot(left + width, entryY, "width", "Sleep om de breedte aan te passen", "ew-resize");
+
+          // SL handle (bottom line center)
+          createDot(left + width / 2, slY, "sl", "Sleep om Stop Loss (SL) aan te passen", "ns-resize");
+        }
 
         function findFirstRiskRewardHit() {
           if (!chartDataToUse || chartDataToUse.length === 0) return null;
