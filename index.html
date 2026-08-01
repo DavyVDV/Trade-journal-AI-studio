@@ -3541,11 +3541,25 @@
         <div
           class="bg-terminal-card border border-terminal p-4 min-h-[300px] flex flex-col relative rounded-sm"
         >
-          <span
-            class="text-[10px] font-mono uppercase tracking-widest text-slate-200 absolute top-3 left-4"
-            >GEFILTERDE EQUITY CURVE NETTO</span
-          >
-          <div class="flex-1 w-full pt-4 relative">
+          <div class="flex justify-between items-center mb-3">
+            <div class="flex items-center gap-2">
+              <span
+                id="analyticsMainChartTitleText"
+                class="text-[10px] font-mono uppercase tracking-widest text-slate-200 font-bold"
+                >GEFILTERDE EQUITY CURVE NETTO</span
+              >
+              <button
+                type="button"
+                onclick="editAnalyticsMainChartTitle()"
+                title="Titel bewerken"
+                class="text-zinc-400 hover:text-white transition-colors text-[10px] px-1.5 py-0.5 rounded border border-zinc-700/60 hover:border-zinc-500 bg-zinc-900/80 flex items-center gap-1 cursor-pointer"
+              >
+                <i class="fas fa-pencil-alt text-[9px]"></i>
+                <span class="text-[9px] uppercase font-mono">Titel bewerken</span>
+              </button>
+            </div>
+          </div>
+          <div class="flex-1 w-full relative min-h-[250px]">
             <canvas id="analyticsPnlChart"></canvas>
           </div>
         </div>
@@ -6043,6 +6057,7 @@
         loadTagGroups();
         loadGlobalTagColors();
         loadCustomCharts();
+        loadAnalyticsMainChartTitle();
         loadData();
         setupColumnFilterClickHandler();
         setupInteractivePolish();
@@ -6933,6 +6948,41 @@
           "qt_global_tag_colors_v1",
           JSON.stringify(globalTagColors),
         );
+      }
+
+      var analyticsMainChartTitle = "";
+
+      function loadAnalyticsMainChartTitle() {
+        try {
+          var t = localStorage.getItem("analytics_main_chart_title");
+          if (t != null) analyticsMainChartTitle = t;
+        } catch (e) {}
+        updateAnalyticsMainChartTitleUI();
+      }
+
+      function saveAnalyticsMainChartTitle() {
+        try {
+          localStorage.setItem("analytics_main_chart_title", analyticsMainChartTitle || "");
+        } catch (e) {}
+        updateAnalyticsMainChartTitleUI();
+      }
+
+      function updateAnalyticsMainChartTitleUI() {
+        var el = document.getElementById("analyticsMainChartTitleText");
+        if (el) {
+          el.textContent = (analyticsMainChartTitle && analyticsMainChartTitle.trim())
+            ? analyticsMainChartTitle.trim().toUpperCase()
+            : "GEFILTERDE EQUITY CURVE NETTO";
+        }
+      }
+
+      function editAnalyticsMainChartTitle() {
+        var current = (analyticsMainChartTitle && analyticsMainChartTitle.trim()) ? analyticsMainChartTitle.trim() : "GEFILTERDE EQUITY CURVE NETTO";
+        var res = prompt("Voer een titel in voor de hoofdgrafiek op de Tags pagina:", current);
+        if (res !== null) {
+          analyticsMainChartTitle = res.trim();
+          saveAnalyticsMainChartTitle();
+        }
       }
 
       function loadCustomCharts() {
@@ -10662,6 +10712,7 @@
       }
 
       function renderAnalyticsView() {
+        updateAnalyticsMainChartTitleUI();
         var label = document.getElementById("analyticsLogicLabel");
         var currentText = document.getElementById("analyticsLogicCurrentText");
         var checkAND = document.getElementById("logicCheckAND");
@@ -11118,15 +11169,26 @@
           return a.time - b.time;
         });
         var cum = 0;
+        var winCount = 0;
         var labels = chron.map(function (t) {
           return t.time instanceof Date && !isNaN(t.time)
             ? fmtDateCore(t.time)
             : t.dateStr || "Unknown";
         });
-        var data = chron.map(function (t) {
+        var dataPoints = chron.map(function (t, idx) {
           var f = t.fee || 0;
-          cum += t.pnl - f;
-          return Math.round(cum * 100) / 100;
+          var netPnl = (t.pnl || 0) - f;
+          cum += netPnl;
+          if (netPnl > 0) winCount++;
+          var totalCount = idx + 1;
+          var winRate = (winCount / totalCount) * 100;
+          return {
+            x: idx,
+            y: Math.round(cum * 100) / 100,
+            winRate: winRate,
+            winCount: winCount,
+            totalCount: totalCount
+          };
         });
 
         var ctx = canvas.getContext("2d");
@@ -11181,7 +11243,7 @@
             datasets: [
               {
                 label: "Cumulative Net P&L",
-                data: data,
+                data: dataPoints,
                 borderColor: lineColor,
                 backgroundColor: gradient,
                 borderWidth: 2,
@@ -11204,16 +11266,23 @@
             plugins: {
               legend: { display: false },
               tooltip: {
-                backgroundColor: "rgba(9, 9, 11, 0.9)",
+                backgroundColor: "rgba(9, 9, 11, 0.95)",
                 titleColor: "#fff",
                 bodyColor: "#fff",
                 borderColor: "#27272a",
                 borderWidth: 1,
-                padding: 12,
+                padding: 10,
                 displayColors: false,
                 callbacks: {
                   label: function (ctx) {
                     return "Netto P&L: " + fmtUSD(ctx.parsed.y);
+                  },
+                  afterLabel: function (ctx) {
+                    var raw = ctx.raw;
+                    if (raw && typeof raw.winRate === "number" && raw.totalCount > 0) {
+                      return "Win Rate: " + raw.winRate.toFixed(1) + "% (" + raw.winCount + "/" + raw.totalCount + " W)";
+                    }
+                    return "";
                   },
                 },
               },
@@ -11388,17 +11457,19 @@
           var title = document.createElement("div");
           title.className =
             "text-[10px] text-slate-300 uppercase tracking-wider font-mono flex-1 min-w-0 overflow-hidden flex items-center gap-1.5 whitespace-nowrap";
-          if (cc.title) {
+          
+          var hasCustomTitle = Boolean(cc.title && cc.title.trim());
+          if (hasCustomTitle) {
             var customTitle = document.createElement("span");
             customTitle.className =
-              "text-zinc-100 font-semibold overflow-hidden text-ellipsis shrink min-w-0";
-            customTitle.textContent = cc.title;
-            customTitle.title = cc.title;
+              "text-zinc-100 font-bold overflow-hidden text-ellipsis shrink-0";
+            customTitle.textContent = cc.title.trim();
+            customTitle.title = cc.title.trim();
             title.appendChild(customTitle);
           }
-          var chartStats = computeCustomChartStats(cc);
+
           if (cc.tags && cc.tags.length > 0) {
-            if (cc.title) {
+            if (hasCustomTitle) {
               var titleSeparator = document.createElement("span");
               titleSeparator.className = "text-zinc-600 shrink-0";
               titleSeparator.textContent = "//";
@@ -11424,42 +11495,12 @@
               tagBadge.style.setProperty("color", badgeTextColor, "important");
               tagBadge.textContent = formatTagLabel(tag);
               title.appendChild(tagBadge);
-
-              if (cc.seriesMode !== "combined") {
-                var perTagStat = chartStats.find(function (s) { return s.tag === tag; });
-                if (perTagStat) {
-                  var perTagStatEl = document.createElement("span");
-                  perTagStatEl.className = "text-[9px] shrink-0 whitespace-nowrap";
-                  var perTagNetColor = perTagStat.net >= 0 ? "#22bde8" : "#d83a2e";
-                  perTagStatEl.innerHTML =
-                    '<span class="text-zinc-500">WR</span> <span class="text-zinc-200">' + perTagStat.winRate.toFixed(0) + "%</span> " +
-                    '<span style="color:' + perTagNetColor + '">' + (perTagStat.net >= 0 ? "+" : "") + fmtUSD(perTagStat.net) + "</span>";
-                  title.appendChild(perTagStatEl);
-                }
-              }
             });
-            if (cc.seriesMode === "combined" && chartStats.length) {
-              var combinedStat = chartStats[0];
-              var combinedStatEl = document.createElement("span");
-              combinedStatEl.className = "text-[9px] shrink-0 whitespace-nowrap ml-1";
-              var combinedNetColor = combinedStat.net >= 0 ? "#22bde8" : "#d83a2e";
-              combinedStatEl.innerHTML =
-                '<span class="text-zinc-500">WR</span> <span class="text-zinc-200">' + combinedStat.winRate.toFixed(0) + "%</span> " +
-                '<span style="color:' + combinedNetColor + '">' + (combinedStat.net >= 0 ? "+" : "") + fmtUSD(combinedStat.net) + "</span>";
-              title.appendChild(combinedStatEl);
-            }
-          } else if (!cc.title) {
-            title.innerText = "ALL TRADES";
-            if (chartStats.length) {
-              var allStat = chartStats[0];
-              var allStatEl = document.createElement("span");
-              allStatEl.className = "text-[9px] shrink-0 whitespace-nowrap ml-1";
-              var allNetColor = allStat.net >= 0 ? "#22bde8" : "#d83a2e";
-              allStatEl.innerHTML =
-                '<span class="text-zinc-500">WR</span> <span class="text-zinc-200">' + allStat.winRate.toFixed(0) + "%</span> " +
-                '<span style="color:' + allNetColor + '">' + (allStat.net >= 0 ? "+" : "") + fmtUSD(allStat.net) + "</span>";
-              title.appendChild(allStatEl);
-            }
+          } else if (!hasCustomTitle) {
+            var defaultTitle = document.createElement("span");
+            defaultTitle.className = "text-zinc-100 font-bold tracking-widest";
+            defaultTitle.textContent = "ALLE TRADES";
+            title.appendChild(defaultTitle);
           }
 
           var controls = document.createElement("div");
@@ -11710,13 +11751,17 @@
           });
 
           var cumulative = 0;
+          var winCount = 0;
           var dataPoints = [
-            { x: 0, y: 0, trade: null, dateStr: "Start" }
+            { x: 0, y: 0, trade: null, dateStr: "Start", winRate: 0, winCount: 0, totalCount: 0 }
           ];
 
           tagTrades.forEach(function (trade, idx) {
-            var pnl = (trade.pnl || 0) - (trade.fee || 0);
-            cumulative += pnl;
+            var netPnl = (trade.pnl || 0) - (trade.fee || 0);
+            cumulative += netPnl;
+            if (netPnl > 0) winCount++;
+            var totalCount = idx + 1;
+            var winRate = (winCount / totalCount) * 100;
             var dStr = trade.time instanceof Date && !isNaN(trade.time)
               ? fmtDateCore(trade.time)
               : (trade.dateStr || "");
@@ -11724,7 +11769,10 @@
               x: idx + 1,
               y: Math.round(cumulative * 100) / 100,
               trade: trade,
-              dateStr: dStr
+              dateStr: dStr,
+              winRate: winRate,
+              winCount: winCount,
+              totalCount: totalCount
             });
           });
 
@@ -11785,12 +11833,12 @@
             plugins: {
               legend: { display: false },
               tooltip: {
-                backgroundColor: "rgba(9, 9, 11, 0.9)",
+                backgroundColor: "rgba(9, 9, 11, 0.95)",
                 titleColor: "#fff",
                 bodyColor: "#fff",
                 borderColor: "#27272a",
                 borderWidth: 1,
-                padding: 8,
+                padding: 10,
                 displayColors: false,
                 callbacks: {
                   title: function (items) {
@@ -11804,6 +11852,13 @@
                   },
                   label: function (ctx) {
                     return ctx.dataset.label + ": " + fmtUSD(ctx.parsed.y);
+                  },
+                  afterLabel: function (ctx) {
+                    var raw = ctx.raw;
+                    if (raw && typeof raw.winRate === "number" && raw.totalCount > 0) {
+                      return "Win Rate: " + raw.winRate.toFixed(1) + "% (" + raw.winCount + "/" + raw.totalCount + " W)";
+                    }
+                    return "";
                   },
                 },
               },
@@ -11870,6 +11925,7 @@
         });
         saveCustomCharts();
         renderCustomCharts();
+        openCustomChartSettings(customCharts.length - 1);
       }
 
       function snapCustomCharts() {
@@ -12278,6 +12334,7 @@
           globalTagColors: globalTagColors,
           commissionRules: commissionRules,
           customCharts: cleanCustomCharts,
+          analyticsMainChartTitle: analyticsMainChartTitle || "",
           flowcharts: typeof flowcharts !== "undefined" ? flowcharts : [],
           globalChartData: globalChartData,
           globalChartDataTimeMode: CHART_TIME_MODE,
@@ -12407,6 +12464,11 @@
               if (importedData.customCharts) {
                 customCharts = importedData.customCharts;
                 saveCustomCharts();
+              }
+
+              if (importedData.analyticsMainChartTitle !== undefined) {
+                analyticsMainChartTitle = importedData.analyticsMainChartTitle;
+                saveAnalyticsMainChartTitle();
               }
 
               if (importedData.flowcharts) {
