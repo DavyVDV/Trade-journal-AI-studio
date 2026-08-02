@@ -6058,6 +6058,7 @@
         loadGlobalTagColors();
         loadCustomCharts();
         loadAnalyticsMainChartTitle();
+        loadAnalyticsTagFilters();
         loadData();
         setupColumnFilterClickHandler();
         setupInteractivePolish();
@@ -6985,17 +6986,41 @@
         }
       }
 
+      function saveAnalyticsTagFilters() {
+        try {
+          localStorage.setItem(
+            "qt_analytics_filter_tags",
+            JSON.stringify(analyticsFilterTags || []),
+          );
+          localStorage.setItem(
+            "qt_analytics_exclude_tags",
+            JSON.stringify(analyticsExcludeTags || []),
+          );
+        } catch (e) {}
+      }
+
+      function loadAnalyticsTagFilters() {
+        try {
+          var inc = localStorage.getItem("qt_analytics_filter_tags");
+          if (inc) analyticsFilterTags = JSON.parse(inc);
+          var exc = localStorage.getItem("qt_analytics_exclude_tags");
+          if (exc) analyticsExcludeTags = JSON.parse(exc);
+        } catch (e) {}
+      }
+
       function loadCustomCharts() {
         try {
           var s = localStorage.getItem("qt_custom_charts_v1");
           if (s) {
             customCharts = JSON.parse(s);
 
-            // Auto-fix charts missing x, y coordinates from older saves
+            // Auto-fix charts missing x, y coordinates or arrays from older saves
             var needsFix = false;
             var currentY = 0;
             var zeros = 0;
             customCharts.forEach(function (cc) {
+              if (!Array.isArray(cc.tags)) cc.tags = [];
+              if (!Array.isArray(cc.excludeTags)) cc.excludeTags = [];
               if (!cc.seriesMode) {
                 cc.seriesMode = "separate";
                 needsFix = true;
@@ -7026,8 +7051,9 @@
           return {
             id: cc.id,
             title: cc.title || "",
-            tags: cc.tags,
-            logic: cc.logic,
+            tags: Array.isArray(cc.tags) ? cc.tags : [],
+            excludeTags: Array.isArray(cc.excludeTags) ? cc.excludeTags : [],
+            logic: cc.logic || "OR",
             seriesMode: cc.seriesMode || "separate",
             width: cc.width,
             height: cc.height,
@@ -10768,6 +10794,7 @@
             } else {
               analyticsExcludeTags = analyticsExcludeTags.filter(function (x) { return x !== t; });
             }
+            saveAnalyticsTagFilters();
             renderAnalyticsView();
           };
           cloud.appendChild(btn);
@@ -10950,6 +10977,7 @@
 
         saveGlobalTags();
         saveGlobalTagColors();
+        saveAnalyticsTagFilters();
         saveCustomCharts();
         saveData({ skipUpdate: true });
         renderTable({ skipAnimation: true });
@@ -10995,6 +11023,7 @@
             });
             saveGlobalTags();
             saveGlobalTagColors();
+            saveAnalyticsTagFilters();
 
             // Scrub references inside structural trade logs
             trades.forEach(function (t) {
@@ -12335,6 +12364,9 @@
           commissionRules: commissionRules,
           customCharts: cleanCustomCharts,
           analyticsMainChartTitle: analyticsMainChartTitle || "",
+          analyticsFilterTags: analyticsFilterTags || [],
+          analyticsExcludeTags: analyticsExcludeTags || [],
+          analyticsFilterLogic: analyticsFilterLogic || "AND",
           flowcharts: typeof flowcharts !== "undefined" ? flowcharts : [],
           globalChartData: globalChartData,
           globalChartDataTimeMode: CHART_TIME_MODE,
@@ -12462,13 +12494,30 @@
               }
 
               if (importedData.customCharts) {
-                customCharts = importedData.customCharts;
+                customCharts = importedData.customCharts.map(function (cc) {
+                  if (!Array.isArray(cc.tags)) cc.tags = [];
+                  if (!Array.isArray(cc.excludeTags)) cc.excludeTags = [];
+                  if (!cc.seriesMode) cc.seriesMode = "separate";
+                  return cc;
+                });
                 saveCustomCharts();
               }
 
               if (importedData.analyticsMainChartTitle !== undefined) {
                 analyticsMainChartTitle = importedData.analyticsMainChartTitle;
                 saveAnalyticsMainChartTitle();
+              }
+
+              if (importedData.analyticsFilterTags !== undefined) {
+                analyticsFilterTags = importedData.analyticsFilterTags || [];
+                analyticsExcludeTags = importedData.analyticsExcludeTags || [];
+                saveAnalyticsTagFilters();
+              }
+
+              if (importedData.analyticsFilterLogic !== undefined) {
+                if (typeof setAnalyticsLogic === "function") {
+                  setAnalyticsLogic(importedData.analyticsFilterLogic || "AND");
+                }
               }
 
               if (importedData.flowcharts) {
