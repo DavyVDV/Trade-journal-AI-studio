@@ -7098,6 +7098,7 @@
             excludeTags: Array.isArray(cc.excludeTags) ? cc.excludeTags : [],
             logic: cc.logic || "OR",
             seriesMode: cc.seriesMode || "separate",
+            baseWidth: cc.baseWidth || 1200,
             width: cc.width,
             height: cc.height,
             x: cc.x,
@@ -11386,16 +11387,27 @@
         if (!container) return;
         container.innerHTML = "";
 
+        var containerWidth = container.clientWidth || 1200;
+
         customCharts.forEach(function (cc, index) {
           if (!cc.width) cc.width = 400;
           if (!cc.height) cc.height = 250;
+          var baseW = cc.baseWidth || Math.max(1200, (cc.x || 0) + (cc.width || 400));
+          cc.baseWidth = baseW;
+
+          var leftPercent = Math.max(0, ((cc.x || 0) / baseW) * 100);
+          var widthPercent = Math.max(5, ((cc.width || 400) / baseW) * 100);
+
+          if (leftPercent + widthPercent > 100 && leftPercent + widthPercent <= 101) {
+            widthPercent = 100 - leftPercent;
+          }
 
           var wrapper = document.createElement("div");
           wrapper.className =
             "bg-terminal-card border border-terminal rounded-sm absolute flex flex-col";
-          wrapper.style.width = cc.width + "px";
+          wrapper.style.width = widthPercent.toFixed(4) + "%";
           wrapper.style.height = cc.height + "px";
-          wrapper.style.left = (cc.x || 0) + "px";
+          wrapper.style.left = leftPercent.toFixed(4) + "%";
           wrapper.style.top = (cc.y || 0) + "px";
           wrapper.style.overflow = "hidden";
 
@@ -11418,10 +11430,16 @@
               return;
             e.preventDefault();
             e.target.setPointerCapture(e.pointerId);
+
+            var currContainerW = container.clientWidth || 1200;
+            var baseW = cc.baseWidth || currContainerW;
+            var scale = currContainerW / baseW;
+
             var startX = e.clientX;
             var startY = e.clientY;
-            var startCcX = cc.x || 0;
-            var startCcY = cc.y || 0;
+            var startRenderX = (cc.x || 0) * scale;
+            var startRenderY = cc.y || 0;
+            var renderW = (cc.width || 400) * scale;
 
             wrapper.style.zIndex = 100;
 
@@ -11452,10 +11470,10 @@
             var onPointerMove = function (ev) {
               var dx = ev.clientX - startX;
               var dy = ev.clientY - startY;
-              var newX = startCcX + dx;
-              var newY = startCcY + dy;
-              if (newX < 0) newX = 0;
-              if (newY < 0) newY = 0;
+              var newRenderX = startRenderX + dx;
+              var newRenderY = startRenderY + dy;
+              if (newRenderX < 0) newRenderX = 0;
+              if (newRenderY < 0) newRenderY = 0;
 
               var snapThresh = 15;
               var snappedX = false;
@@ -11463,38 +11481,45 @@
 
               customCharts.forEach(function (other) {
                 if (other === cc) return;
-                var targetXs = [other.x, other.x + other.width];
+                var otherBaseW = other.baseWidth || currContainerW;
+                var otherScale = currContainerW / otherBaseW;
+                var otherX = (other.x || 0) * otherScale;
+                var otherW = (other.width || 400) * otherScale;
+                var otherY = other.y || 0;
+                var otherH = other.height || 250;
+
+                var targetXs = [otherX, otherX + otherW];
                 targetXs.forEach(function (targetX) {
-                  if (!snappedX && Math.abs(newX - targetX) < snapThresh) {
-                    newX = targetX;
+                  if (!snappedX && Math.abs(newRenderX - targetX) < snapThresh) {
+                    newRenderX = targetX;
                     snappedX = true;
                     guideX.style.display = "block";
                     guideX.style.left = targetX + "px";
                   }
                   if (
                     !snappedX &&
-                    Math.abs(newX + cc.width - targetX) < snapThresh
+                    Math.abs(newRenderX + renderW - targetX) < snapThresh
                   ) {
-                    newX = targetX - cc.width;
+                    newRenderX = targetX - renderW;
                     snappedX = true;
                     guideX.style.display = "block";
                     guideX.style.left = targetX + "px";
                   }
                 });
 
-                var targetYs = [other.y, other.y + other.height];
+                var targetYs = [otherY, otherY + otherH];
                 targetYs.forEach(function (targetY) {
-                  if (!snappedY && Math.abs(newY - targetY) < snapThresh) {
-                    newY = targetY;
+                  if (!snappedY && Math.abs(newRenderY - targetY) < snapThresh) {
+                    newRenderY = targetY;
                     snappedY = true;
                     guideY.style.display = "block";
                     guideY.style.top = targetY + "px";
                   }
                   if (
                     !snappedY &&
-                    Math.abs(newY + cc.height - targetY) < snapThresh
+                    Math.abs(newRenderY + (cc.height || 250) - targetY) < snapThresh
                   ) {
-                    newY = targetY - cc.height;
+                    newRenderY = targetY - (cc.height || 250);
                     snappedY = true;
                     guideY.style.display = "block";
                     guideY.style.top = targetY + "px";
@@ -11505,10 +11530,14 @@
               if (!snappedX) guideX.style.display = "none";
               if (!snappedY) guideY.style.display = "none";
 
-              wrapper.style.left = newX + "px";
-              wrapper.style.top = newY + "px";
-              cc.x = newX;
-              cc.y = newY;
+              var leftPercent = (newRenderX / currContainerW) * 100;
+              wrapper.style.left = leftPercent.toFixed(4) + "%";
+              wrapper.style.top = newRenderY + "px";
+
+              cc.baseWidth = currContainerW;
+              cc.x = newRenderX;
+              cc.y = newRenderY;
+              cc.width = renderW;
             };
 
             var onPointerUp = function (ev) {
@@ -11632,10 +11661,16 @@
             e.preventDefault();
             e.stopPropagation();
             e.target.setPointerCapture(e.pointerId);
+
+            var currContainerW = container.clientWidth || 1200;
+            var baseW = cc.baseWidth || currContainerW;
+            var scale = currContainerW / baseW;
+
             var startX = e.clientX;
             var startY = e.clientY;
-            var startW = cc.width || 400;
+            var startRenderW = (cc.width || 400) * scale;
             var startH = cc.height || 250;
+            var renderX = (cc.x || 0) * scale;
 
             var guideX = document.getElementById("snapGuideX");
             var guideY = document.getElementById("snapGuideY");
@@ -11643,73 +11678,79 @@
             var onPointerMove = function (ev) {
               var dx = ev.clientX - startX;
               var dy = ev.clientY - startY;
-              var newW = startW + dx;
+              var newRenderW = startRenderW + dx;
               var newH = startH + dy;
-              if (newW < 200) newW = 200;
+              if (newRenderW < 180) newRenderW = 180;
               if (newH < 150) newH = 150;
 
               var snapThresh = 15;
               var snappedX = false;
               var snappedY = false;
 
-              var currentRight = (cc.x || 0) + newW;
+              var currentRight = renderX + newRenderW;
               var currentBottom = (cc.y || 0) + newH;
 
               customCharts.forEach(function (other) {
                 if (other === cc) return;
+                var otherBaseW = other.baseWidth || currContainerW;
+                var otherScale = currContainerW / otherBaseW;
+                var otherX = (other.x || 0) * otherScale;
+                var otherW = (other.width || 400) * otherScale;
+                var otherY = other.y || 0;
+                var otherH = other.height || 250;
 
-                if (!snappedX && Math.abs(newW - other.width) < snapThresh) {
-                  newW = other.width;
+                if (!snappedX && Math.abs(newRenderW - otherW) < snapThresh) {
+                  newRenderW = otherW;
                   snappedX = true;
                 }
                 if (
                   !snappedX &&
-                  Math.abs(currentRight - other.x) < snapThresh
+                  Math.abs(currentRight - otherX) < snapThresh
                 ) {
-                  newW = other.x - (cc.x || 0);
+                  newRenderW = otherX - renderX;
                   snappedX = true;
                   if (guideX) {
                     guideX.style.display = "block";
-                    guideX.style.left = other.x + "px";
+                    guideX.style.left = otherX + "px";
                   }
                 }
                 if (
                   !snappedX &&
-                  Math.abs(currentRight - (other.x + other.width)) < snapThresh
+                  Math.abs(currentRight - (otherX + otherW)) < snapThresh
                 ) {
-                  newW = other.x + other.width - (cc.x || 0);
+                  newRenderW = otherX + otherW - renderX;
                   snappedX = true;
                   if (guideX) {
                     guideX.style.display = "block";
-                    guideX.style.left = other.x + other.width + "px";
+                    guideX.style.left = otherX + otherW + "px";
                   }
                 }
 
-                if (!snappedY && Math.abs(newH - other.height) < snapThresh) {
-                  newH = other.height;
+                if (!snappedY && Math.abs(newH - otherH) < snapThresh) {
+                  newH = otherH;
                   snappedY = true;
                 }
                 if (
                   !snappedY &&
-                  Math.abs(currentBottom - other.y) < snapThresh
+                  Math.abs(currentBottom - otherY) < snapThresh
                 ) {
-                  newH = other.y - (cc.y || 0);
+                  newH = otherY - (cc.y || 0);
                   snappedY = true;
                   if (guideY) {
                     guideY.style.display = "block";
-                    guideY.style.top = other.y + "px";
+                    guideY.style.top = otherY + "px";
                   }
                 }
                 if (
                   !snappedY &&
-                  Math.abs(currentBottom - (other.y + other.height)) <
+                  Math.abs(currentBottom - (otherY + otherH)) <
                     snapThresh
                 ) {
-                  newH = other.y + other.height - (cc.y || 0);
+                  newH = otherY + otherH - (cc.y || 0);
                   snappedY = true;
                   if (guideY) {
                     guideY.style.display = "block";
-                    guideY.style.top = other.y + other.height + "px";
+                    guideY.style.top = otherY + otherH + "px";
                   }
                 }
               });
@@ -11717,21 +11758,25 @@
               if (!snappedX && guideX) guideX.style.display = "none";
               if (!snappedY && guideY) guideY.style.display = "none";
 
-              wrapper.style.width = newW + "px";
+              var widthPercent = (newRenderW / currContainerW) * 100;
+              wrapper.style.width = widthPercent.toFixed(4) + "%";
               wrapper.style.height = newH + "px";
-              cc.width = newW;
+
+              cc.baseWidth = currContainerW;
+              cc.width = newRenderW;
               cc.height = newH;
-              if (cc.chartInstance) cc.chartInstance.resize();
+              cc.x = renderX;
             };
 
             var onPointerUp = function (ev) {
-              e.target.releasePointerCapture(ev.pointerId);
+              resizer.releasePointerCapture(ev.pointerId);
               resizer.removeEventListener("pointermove", onPointerMove);
               resizer.removeEventListener("pointerup", onPointerUp);
               if (guideX) guideX.style.display = "none";
               if (guideY) guideY.style.display = "none";
               saveCustomCharts();
               updateContainerHeight();
+              if (cc.chartInstance) cc.chartInstance.resize();
             };
 
             resizer.addEventListener("pointermove", onPointerMove);
@@ -11978,6 +12023,9 @@
       }
 
       function addCustomChart() {
+        var container = document.getElementById("customChartsContainer");
+        var containerWidth = (container && container.clientWidth) ? container.clientWidth : 1200;
+
         var maxY = 0;
         customCharts.forEach(function (cc) {
           var b = (cc.y || 0) + (cc.height || 250);
@@ -11985,13 +12033,16 @@
         });
         if (maxY > 0) maxY += 16;
 
+        var defaultWidth = Math.min(400, containerWidth);
+
         customCharts.push({
           id: "cc_" + Date.now(),
           title: "",
           tags: [],
           logic: "OR",
           seriesMode: "separate",
-          width: 400,
+          baseWidth: containerWidth,
+          width: defaultWidth,
           height: 250,
           x: 0,
           y: maxY,
@@ -12004,7 +12055,7 @@
       function snapCustomCharts() {
         var container = document.getElementById("customChartsContainer");
         if (!container) return;
-        var containerWidth = container.clientWidth;
+        var containerWidth = container.clientWidth || 1200;
         var gap = 16;
         var cols = 3;
         if (containerWidth < 800) cols = 2;
@@ -12012,7 +12063,7 @@
 
         var targetWidth =
           Math.floor((containerWidth - gap * (cols - 1)) / cols) - 1;
-        if (targetWidth < 200) targetWidth = 200;
+        if (targetWidth < 180) targetWidth = 180;
 
         var row = 0;
         var col = 0;
@@ -12020,6 +12071,7 @@
         var rowHeight = 250;
 
         customCharts.forEach(function (cc) {
+          cc.baseWidth = containerWidth;
           cc.width = targetWidth;
           cc.height = rowHeight;
 
