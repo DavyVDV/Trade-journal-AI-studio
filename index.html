@@ -3671,13 +3671,71 @@
             >
               Aangepaste Grafieken
             </h3>
-            <div class="space-x-2">
-              <button
-                onclick="snapCustomCharts()"
-                class="bg-zinc-800 border border-slate-600 text-xs text-zinc-300 hover:text-white px-3 py-1 rounded-sm font-mono transition-colors"
-              >
-                Snap Grafieken
-              </button>
+            <div class="flex items-center gap-2">
+              <div class="relative inline-block text-left">
+                <button
+                  id="customChartPresetsBtn"
+                  onclick="toggleCustomChartPresetsMenu(event)"
+                  class="bg-zinc-800 border border-slate-600 text-xs text-zinc-300 hover:text-white px-3 py-1 rounded-sm font-mono transition-colors flex items-center gap-1.5 focus:outline-none"
+                  title="Layout en sorteer presets voor aangepaste grafieken"
+                >
+                  <i class="fas fa-layer-group text-[10px] text-zinc-400"></i>
+                  <span>Presets</span>
+                  <i class="fas fa-chevron-down text-[8px] text-zinc-400"></i>
+                </button>
+                <div
+                  id="customChartPresetsMenu"
+                  class="hidden absolute right-0 mt-1.5 w-64 border border-zinc-700 rounded-md shadow-2xl z-50 text-xs font-mono py-1 divide-y divide-zinc-800"
+                  style="background-color: #18181b !important; opacity: 1 !important;"
+                >
+                  <!-- Layout Presets Section -->
+                  <div class="py-1">
+                    <div class="px-3 py-1 text-[9px] uppercase font-bold text-zinc-500 tracking-wider flex items-center gap-1">
+                      <i class="fas fa-th-large text-emerald-500"></i> Grid Layout Presets
+                    </div>
+                    <button onclick="applyCustomChartPreset('grid-1col'); closeCustomChartPresetsMenu();" class="w-full text-left px-3 py-1.5 text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-between transition-colors">
+                      <span class="flex items-center gap-2"><i class="fas fa-square text-[10px] text-zinc-500"></i>1 Kolom (Groot)</span>
+                      <span class="text-[9px] text-zinc-500 font-mono">100% breedte</span>
+                    </button>
+                    <button onclick="applyCustomChartPreset('grid-2col'); closeCustomChartPresetsMenu();" class="w-full text-left px-3 py-1.5 text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-between transition-colors">
+                      <span class="flex items-center gap-2"><i class="fas fa-columns text-[10px] text-zinc-500"></i>2 Kolommen</span>
+                      <span class="text-[9px] text-zinc-500 font-mono">50% / 50%</span>
+                    </button>
+                    <button onclick="applyCustomChartPreset('grid-3col'); closeCustomChartPresetsMenu();" class="w-full text-left px-3 py-1.5 text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-between transition-colors">
+                      <span class="flex items-center gap-2"><i class="fas fa-th-large text-[10px] text-zinc-500"></i>3 Kolommen (Standaard)</span>
+                      <span class="text-[9px] text-zinc-500 font-mono">33% elk</span>
+                    </button>
+                    <button onclick="applyCustomChartPreset('grid-4col'); closeCustomChartPresetsMenu();" class="w-full text-left px-3 py-1.5 text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-between transition-colors">
+                      <span class="flex items-center gap-2"><i class="fas fa-th text-[10px] text-zinc-500"></i>4 Kolommen (Compact)</span>
+                      <span class="text-[9px] text-zinc-500 font-mono">25% elk</span>
+                    </button>
+                    <button onclick="applyCustomChartPreset('grid-bento'); closeCustomChartPresetsMenu();" class="w-full text-left px-3 py-1.5 text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-between transition-colors">
+                      <span class="flex items-center gap-2"><i class="fas fa-grip-horizontal text-[10px] text-zinc-500"></i>Bento / Asymmetrisch</span>
+                      <span class="text-[9px] text-zinc-500 font-mono">Afwisselend</span>
+                    </button>
+                  </div>
+
+                  <!-- Sorting Presets Section -->
+                  <div class="py-1">
+                    <div class="px-3 py-1 text-[9px] uppercase font-bold text-zinc-500 tracking-wider flex items-center gap-1">
+                      <i class="fas fa-sort-amount-down text-emerald-500"></i> Sorteer Volgorde
+                    </div>
+                    <button onclick="applyCustomChartPreset('sort-title-asc'); closeCustomChartPresetsMenu();" class="w-full text-left px-3 py-1.5 text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-between transition-colors">
+                      <span class="flex items-center gap-2"><i class="fas fa-sort-alpha-down text-[10px] text-zinc-500"></i>Titel (A - Z)</span>
+                    </button>
+                    <button onclick="applyCustomChartPreset('sort-title-desc'); closeCustomChartPresetsMenu();" class="w-full text-left px-3 py-1.5 text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-between transition-colors">
+                      <span class="flex items-center gap-2"><i class="fas fa-sort-alpha-up text-[10px] text-zinc-500"></i>Titel (Z - A)</span>
+                    </button>
+                    <button onclick="applyCustomChartPreset('sort-tags-desc'); closeCustomChartPresetsMenu();" class="w-full text-left px-3 py-1.5 text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-between transition-colors">
+                      <span class="flex items-center gap-2"><i class="fas fa-tags text-[10px] text-zinc-500"></i>Meeste Tags Eerst</span>
+                    </button>
+                    <button onclick="applyCustomChartPreset('sort-mode'); closeCustomChartPresetsMenu();" class="w-full text-left px-3 py-1.5 text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-between transition-colors">
+                      <span class="flex items-center gap-2"><i class="fas fa-chart-line text-[10px] text-zinc-500"></i>Groepeer op Type</span>
+                      <span class="text-[9px] text-zinc-500 font-mono">Serie Modus</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
               <button
                 onclick="addCustomChart()"
                 class="bg-zinc-800 border border-slate-600 text-xs text-zinc-300 hover:text-white px-3 py-1 rounded-sm font-mono transition-colors"
@@ -7154,6 +7212,16 @@
           var dataDdMobile = document.getElementById("dataMenuDropdownMobile");
           if (dataDdMobile && !dataDdMobile.classList.contains("hidden")) {
             dataDdMobile.classList.add("hidden");
+          }
+        }
+
+        var insidePresetsMenu = target.closest && (
+          target.closest("#customChartPresetsMenu") ||
+          target.closest("#customChartPresetsBtn")
+        );
+        if (!insidePresetsMenu) {
+          if (typeof closeCustomChartPresetsMenu === "function") {
+            closeCustomChartPresetsMenu();
           }
         }
 
@@ -12086,6 +12154,158 @@
 
           col++;
         });
+        saveCustomCharts();
+        renderCustomCharts();
+      }
+
+      function toggleCustomChartPresetsMenu(event) {
+        if (event) event.stopPropagation();
+        var menu = document.getElementById("customChartPresetsMenu");
+        if (menu) {
+          menu.classList.toggle("hidden");
+        }
+      }
+
+      function closeCustomChartPresetsMenu() {
+        var menu = document.getElementById("customChartPresetsMenu");
+        if (menu) {
+          menu.classList.add("hidden");
+        }
+      }
+
+      function applyCustomChartPreset(presetKey) {
+        var container = document.getElementById("customChartsContainer");
+        if (!container || !customCharts || customCharts.length === 0) return;
+        var containerWidth = container.clientWidth || 1200;
+        var gap = 16;
+
+        // Apply sorting presets if selected
+        if (presetKey === "sort-title-asc") {
+          customCharts.sort(function (a, b) {
+            var tA = (a.title || "Onbenoemd").toLowerCase();
+            var tB = (b.title || "Onbenoemd").toLowerCase();
+            return tA.localeCompare(tB);
+          });
+        } else if (presetKey === "sort-title-desc") {
+          customCharts.sort(function (a, b) {
+            var tA = (a.title || "Onbenoemd").toLowerCase();
+            var tB = (b.title || "Onbenoemd").toLowerCase();
+            return tB.localeCompare(tA);
+          });
+        } else if (presetKey === "sort-tags-desc") {
+          customCharts.sort(function (a, b) {
+            var cA = Array.isArray(a.tags) ? a.tags.length : 0;
+            var cB = Array.isArray(b.tags) ? b.tags.length : 0;
+            return cB - cA;
+          });
+        } else if (presetKey === "sort-mode") {
+          customCharts.sort(function (a, b) {
+            var mA = a.seriesMode || "separate";
+            var mB = b.seriesMode || "separate";
+            return mA.localeCompare(mB);
+          });
+        }
+
+        // Apply layout presets
+        if (presetKey === "grid-1col") {
+          var yOffset = 0;
+          var rowH = 280;
+          customCharts.forEach(function (cc) {
+            cc.baseWidth = containerWidth;
+            cc.width = containerWidth;
+            cc.height = rowH;
+            cc.x = 0;
+            cc.y = yOffset;
+            yOffset += rowH + gap;
+          });
+        } else if (presetKey === "grid-2col") {
+          var cols = containerWidth < 600 ? 1 : 2;
+          var targetW = Math.floor((containerWidth - gap * (cols - 1)) / cols);
+          var rowH = 260;
+          var col = 0;
+          var yOffset = 0;
+          customCharts.forEach(function (cc) {
+            cc.baseWidth = containerWidth;
+            cc.width = targetW;
+            cc.height = rowH;
+            if (col >= cols) {
+              col = 0;
+              yOffset += rowH + gap;
+            }
+            cc.x = col * (targetW + gap);
+            cc.y = yOffset;
+            col++;
+          });
+        } else if (presetKey === "grid-4col") {
+          var cols = containerWidth < 500 ? 1 : (containerWidth < 900 ? 2 : 4);
+          var targetW = Math.floor((containerWidth - gap * (cols - 1)) / cols);
+          var rowH = 230;
+          var col = 0;
+          var yOffset = 0;
+          customCharts.forEach(function (cc) {
+            cc.baseWidth = containerWidth;
+            cc.width = targetW;
+            cc.height = rowH;
+            if (col >= cols) {
+              col = 0;
+              yOffset += rowH + gap;
+            }
+            cc.x = col * (targetW + gap);
+            cc.y = yOffset;
+            col++;
+          });
+        } else if (presetKey === "grid-bento") {
+          var yOffset = 0;
+          var idx = 0;
+          while (idx < customCharts.length) {
+            var rowType = Math.floor(idx / 2) % 3;
+            var rowH = 260;
+            if (rowType === 0 && idx + 1 < customCharts.length) {
+              var w1 = Math.floor((containerWidth - gap) * 0.60);
+              var w2 = containerWidth - gap - w1;
+              customCharts[idx].baseWidth = containerWidth;
+              customCharts[idx].width = w1;
+              customCharts[idx].height = rowH;
+              customCharts[idx].x = 0;
+              customCharts[idx].y = yOffset;
+
+              customCharts[idx + 1].baseWidth = containerWidth;
+              customCharts[idx + 1].width = w2;
+              customCharts[idx + 1].height = rowH;
+              customCharts[idx + 1].x = w1 + gap;
+              customCharts[idx + 1].y = yOffset;
+              idx += 2;
+            } else if (rowType === 1 && idx + 1 < customCharts.length) {
+              var w1 = Math.floor((containerWidth - gap) * 0.40);
+              var w2 = containerWidth - gap - w1;
+              customCharts[idx].baseWidth = containerWidth;
+              customCharts[idx].width = w1;
+              customCharts[idx].height = rowH;
+              customCharts[idx].x = 0;
+              customCharts[idx].y = yOffset;
+
+              customCharts[idx + 1].baseWidth = containerWidth;
+              customCharts[idx + 1].width = w2;
+              customCharts[idx + 1].height = rowH;
+              customCharts[idx + 1].x = w1 + gap;
+              customCharts[idx + 1].y = yOffset;
+              idx += 2;
+            } else {
+              customCharts[idx].baseWidth = containerWidth;
+              customCharts[idx].width = containerWidth;
+              customCharts[idx].height = 280;
+              customCharts[idx].x = 0;
+              customCharts[idx].y = yOffset;
+              rowH = 280;
+              idx += 1;
+            }
+            yOffset += rowH + gap;
+          }
+        } else {
+          snapCustomCharts();
+          return;
+        }
+
         saveCustomCharts();
         renderCustomCharts();
       }
