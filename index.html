@@ -7136,7 +7136,7 @@
                 cc.x = 0;
                 cc.y = currentY;
               }
-              var bottom = (cc.y || 0) + (cc.height || 250);
+              var bottom = (cc.y || 0) + (cc.height || 380);
               if (bottom > currentY) currentY = bottom + 16;
             });
 
@@ -11459,7 +11459,7 @@
 
         customCharts.forEach(function (cc, index) {
           if (!cc.width) cc.width = 400;
-          if (!cc.height) cc.height = 250;
+          if (!cc.height) cc.height = 380;
           var baseW = cc.baseWidth || Math.max(1200, (cc.x || 0) + (cc.width || 400));
           cc.baseWidth = baseW;
 
@@ -11482,7 +11482,7 @@
           var updateContainerHeight = function () {
             var maxH = 0;
             customCharts.forEach(function (c) {
-              var bottom = (c.y || 0) + (c.height || 250);
+              var bottom = (c.y || 0) + (c.height || 380);
               if (bottom > maxH) maxH = bottom;
             });
             container.style.minHeight = maxH + 100 + "px";
@@ -11554,7 +11554,7 @@
                 var otherX = (other.x || 0) * otherScale;
                 var otherW = (other.width || 400) * otherScale;
                 var otherY = other.y || 0;
-                var otherH = other.height || 250;
+                var otherH = other.height || 380;
 
                 var targetXs = [otherX, otherX + otherW];
                 targetXs.forEach(function (targetX) {
@@ -11585,9 +11585,9 @@
                   }
                   if (
                     !snappedY &&
-                    Math.abs(newRenderY + (cc.height || 250) - targetY) < snapThresh
+                    Math.abs(newRenderY + (cc.height || 380) - targetY) < snapThresh
                   ) {
-                    newRenderY = targetY - (cc.height || 250);
+                    newRenderY = targetY - (cc.height || 380);
                     snappedY = true;
                     guideY.style.display = "block";
                     guideY.style.top = targetY + "px";
@@ -11737,7 +11737,7 @@
             var startX = e.clientX;
             var startY = e.clientY;
             var startRenderW = (cc.width || 400) * scale;
-            var startH = cc.height || 250;
+            var startH = cc.height || 380;
             var renderX = (cc.x || 0) * scale;
 
             var guideX = document.getElementById("snapGuideX");
@@ -11765,7 +11765,7 @@
                 var otherX = (other.x || 0) * otherScale;
                 var otherW = (other.width || 400) * otherScale;
                 var otherY = other.y || 0;
-                var otherH = other.height || 250;
+                var otherH = other.height || 380;
 
                 if (!snappedX && Math.abs(newRenderW - otherW) < snapThresh) {
                   newRenderW = otherW;
@@ -12096,7 +12096,7 @@
 
         var maxY = 0;
         customCharts.forEach(function (cc) {
-          var b = (cc.y || 0) + (cc.height || 250);
+          var b = (cc.y || 0) + (cc.height || 380);
           if (b > maxY) maxY = b;
         });
         if (maxY > 0) maxY += 16;
@@ -12111,7 +12111,7 @@
           seriesMode: "separate",
           baseWidth: containerWidth,
           width: defaultWidth,
-          height: 250,
+          height: 380,
           x: 0,
           y: maxY,
         });
@@ -12136,7 +12136,7 @@
         var row = 0;
         var col = 0;
         var yOffset = 0;
-        var rowHeight = 250;
+        var rowHeight = 380;
 
         customCharts.forEach(function (cc) {
           cc.baseWidth = containerWidth;
@@ -12209,7 +12209,7 @@
         // Apply layout presets
         if (presetKey === "grid-1col") {
           var yOffset = 0;
-          var rowH = 280;
+          var rowH = 480;
           customCharts.forEach(function (cc) {
             cc.baseWidth = containerWidth;
             cc.width = containerWidth;
@@ -12221,7 +12221,7 @@
         } else if (presetKey === "grid-2col") {
           var cols = containerWidth < 600 ? 1 : 2;
           var targetW = Math.floor((containerWidth - gap * (cols - 1)) / cols);
-          var rowH = 260;
+          var rowH = 400;
           var col = 0;
           var yOffset = 0;
           customCharts.forEach(function (cc) {
@@ -12239,7 +12239,7 @@
         } else if (presetKey === "grid-4col") {
           var cols = containerWidth < 500 ? 1 : (containerWidth < 900 ? 2 : 4);
           var targetW = Math.floor((containerWidth - gap * (cols - 1)) / cols);
-          var rowH = 230;
+          var rowH = 340;
           var col = 0;
           var yOffset = 0;
           customCharts.forEach(function (cc) {
@@ -12259,7 +12259,7 @@
           var idx = 0;
           while (idx < customCharts.length) {
             var rowType = Math.floor(idx / 2) % 3;
-            var rowH = 260;
+            var rowH = 380;
             if (rowType === 0 && idx + 1 < customCharts.length) {
               var w1 = Math.floor((containerWidth - gap) * 0.60);
               var w2 = containerWidth - gap - w1;
@@ -12293,10 +12293,10 @@
             } else {
               customCharts[idx].baseWidth = containerWidth;
               customCharts[idx].width = containerWidth;
-              customCharts[idx].height = 280;
+              customCharts[idx].height = 450;
               customCharts[idx].x = 0;
               customCharts[idx].y = yOffset;
-              rowH = 280;
+              rowH = 450;
               idx += 1;
             }
             yOffset += rowH + gap;
