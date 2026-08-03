@@ -6914,6 +6914,49 @@
         // Preserved for backwards compatibility, no automatic call
       }
 
+      function getMasterTagOrder() {
+        var master = [];
+        var seen = {};
+        if (Array.isArray(tagGroups)) {
+          tagGroups.forEach(function (g) {
+            if (g && Array.isArray(g.tags)) {
+              g.tags.forEach(function (t) {
+                if (t && !seen[t]) {
+                  seen[t] = true;
+                  master.push(t);
+                }
+              });
+            }
+          });
+        }
+        if (Array.isArray(globalTags)) {
+          globalTags.forEach(function (t) {
+            if (t && !seen[t]) {
+              seen[t] = true;
+              master.push(t);
+            }
+          });
+        }
+        return master;
+      }
+
+      function sortTagsByMasterOrder(tags) {
+        if (!Array.isArray(tags) || tags.length <= 1) return (tags || []).slice();
+        var masterOrder = getMasterTagOrder();
+        var masterMap = {};
+        masterOrder.forEach(function (t, idx) {
+          masterMap[t] = idx;
+        });
+        var sorted = tags.slice();
+        sorted.sort(function (a, b) {
+          var idxA = masterMap.hasOwnProperty(a) ? masterMap[a] : 999999;
+          var idxB = masterMap.hasOwnProperty(b) ? masterMap[b] : 999999;
+          if (idxA !== idxB) return idxA - idxB;
+          return 0;
+        });
+        return sorted;
+      }
+
       function loadGlobalTags() {
         try {
           var s = localStorage.getItem("qt_global_tags_v3");
@@ -11504,7 +11547,8 @@
               titleSeparator.textContent = "//";
               title.appendChild(titleSeparator);
             }
-            cc.tags.forEach(function (tag, tagIndex) {
+            var sortedHeaderTags = sortTagsByMasterOrder(cc.tags);
+            sortedHeaderTags.forEach(function (tag, tagIndex) {
               if (tagIndex > 0) {
                 var separator = document.createElement("span");
                 separator.className = "text-zinc-500 shrink-0";
@@ -11702,7 +11746,7 @@
 
       function computeCustomChartStats(cc) {
         var pool = getFilteredTrades();
-        var selectedChartTags = (cc.tags || []).slice();
+        var selectedChartTags = sortTagsByMasterOrder((cc.tags || []).slice());
         var excludedChartTags = (cc.excludeTags || []).slice();
         var showTagsSeparately = selectedChartTags.length > 0 && cc.seriesMode !== "combined";
         var matched = pool.filter(function (trade) {
@@ -11749,7 +11793,7 @@
         }
 
         var pool = getFilteredTrades();
-        var selectedChartTags = (cc.tags || []).slice();
+        var selectedChartTags = sortTagsByMasterOrder((cc.tags || []).slice());
         var excludedChartTags = (cc.excludeTags || []).slice();
         var showTagsSeparately =
           selectedChartTags.length > 0 && cc.seriesMode !== "combined";
@@ -12076,7 +12120,8 @@
           activeContainer.innerHTML = '<span class="text-[10px] text-zinc-500 italic p-1">Geen actieve tags gekozen. Kies tags uit de lijst hieronder.</span>';
         }
 
-        ccModalTempTags.forEach(function (t) {
+        var sortedTempTags = sortTagsByMasterOrder(ccModalTempTags);
+        sortedTempTags.forEach(function (t) {
           var pill = document.createElement("span");
           pill.className =
             "active-tag px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wide flex items-center gap-1.5 select-none border border-emerald-500/70 bg-emerald-500/20 text-emerald-300";
@@ -12152,6 +12197,9 @@
           tagGroups.forEach(function (g) {
             var gTags = filteredTags.filter(function (t) {
               return Array.isArray(g.tags) && g.tags.indexOf(t) >= 0;
+            });
+            gTags.sort(function (a, b) {
+              return g.tags.indexOf(a) - g.tags.indexOf(b);
             });
             if (gTags.length > 0) {
               var hdr = document.createElement("div");
