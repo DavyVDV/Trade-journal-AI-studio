@@ -8427,6 +8427,14 @@
                   newT.tags = match.tags;
                   newT.screenshots = match.screenshots;
                   newT.notes = match.notes;
+                  if (match.tp !== undefined) newT.tp = match.tp;
+                  if (match.sl !== undefined) newT.sl = match.sl;
+                  if (match.rrEntry !== undefined) newT.rrEntry = match.rrEntry;
+                  if (match.rrWidthPx !== undefined) newT.rrWidthPx = match.rrWidthPx;
+                  if (match.rrEndTime !== undefined) newT.rrEndTime = match.rrEndTime;
+                  if (match.chartWorkspace !== undefined) newT.chartWorkspace = match.chartWorkspace;
+                  if (match.chartData !== undefined) newT.chartData = match.chartData;
+                  if (match.chartDataTimeMode !== undefined) newT.chartDataTimeMode = match.chartDataTimeMode;
                 }
               });
 
@@ -8783,6 +8791,14 @@
                 nt.tags = oldT.tags || [];
                 nt.screenshots = oldT.screenshots || [];
                 nt.notes = oldT.notes || "";
+                if (oldT.tp !== undefined) nt.tp = oldT.tp;
+                if (oldT.sl !== undefined) nt.sl = oldT.sl;
+                if (oldT.rrEntry !== undefined) nt.rrEntry = oldT.rrEntry;
+                if (oldT.rrWidthPx !== undefined) nt.rrWidthPx = oldT.rrWidthPx;
+                if (oldT.rrEndTime !== undefined) nt.rrEndTime = oldT.rrEndTime;
+                if (oldT.chartWorkspace !== undefined) nt.chartWorkspace = oldT.chartWorkspace;
+                if (oldT.chartData !== undefined) nt.chartData = oldT.chartData;
+                if (oldT.chartDataTimeMode !== undefined) nt.chartDataTimeMode = oldT.chartDataTimeMode;
               }
             });
 
@@ -8800,7 +8816,7 @@
 
             alert(
               newTrades.length +
-                " trades succesvol heringelezen. Notities/tags zijn bewaard gebleven.",
+                " trades succesvol heringelezen. Notities/tags/RR-instellingen zijn bewaard gebleven.",
             );
           } else {
             var existingMap = {};
@@ -13542,40 +13558,6 @@
         return 0.00001;
       }
 
-      function bindRrLineDrag(handleEl, handleType, trade) {
-        handleEl.addEventListener("pointerdown", function (event) {
-          if (journalRrLocked) return;
-          event.stopPropagation();
-          event.preventDefault();
-
-          var entryPrice = Number(trade.entry) || 0;
-          var isLong = String(trade.side || "").toLowerCase().indexOf("buy") >= 0 || String(trade.side || "").toLowerCase() === "long";
-          var defaultRDistance = Math.max(entryPrice * 0.003, 0.5);
-          var exitPrice = Number(trade.exit);
-          if (exitPrice && !isNaN(exitPrice) && Math.abs(exitPrice - entryPrice) > (entryPrice * 0.0001)) {
-            var eDist = Math.abs(exitPrice - entryPrice);
-            if (eDist > 0.05) defaultRDistance = eDist;
-          }
-
-          var chartDataToUse = currentJournalChartData && currentJournalChartData.length
-            ? currentJournalChartData
-            : ((globalChartData && globalChartData.length > 0) ? globalChartData : (trade ? trade.chartData : null));
-          var step = getJournalTradeTickSize(trade, chartDataToUse);
-          var decimals = (String(step).indexOf(".") >= 0) ? String(step).split(".")[1].length : 0;
-
-          if (trade.sl === undefined || trade.sl === null || trade.sl === "" || isNaN(Number(trade.sl))) {
-            var rawSl = isLong ? (entryPrice - defaultRDistance) : (entryPrice + defaultRDistance);
-            trade.sl = Number((Math.round(rawSl / step) * step).toFixed(Math.max(decimals, 2)));
-          }
-          if (trade.tp === undefined || trade.tp === null || trade.tp === "" || isNaN(Number(trade.tp))) {
-            var rawTp = isLong ? (entryPrice + defaultRDistance) : (entryPrice - defaultRDistance);
-            trade.tp = Number((Math.round(rawTp / step) * step).toFixed(Math.max(decimals, 2)));
-          }
-
-          activeRrDrag = { handleType: handleType, trade: trade };
-        });
-      }
-
       var activeRrDrag = null;
 
       function initGlobalRrDragListeners() {
@@ -13620,7 +13602,8 @@
               ? currentJournalChartData
               : ((globalChartData && globalChartData.length > 0) ? globalChartData : (trade ? trade.chartData : null));
             var entryTime = trade.time ? toChartTimestampFromLocalDate(trade.time) : null;
-            var entryCandleTime = (entryTime && trade.entry) ? findBestTradeCandleTime(chartDataToUse, entryTime, Number(trade.entry)) : null;
+            var baseEntry = (trade.rrEntry !== undefined && trade.rrEntry !== null && trade.rrEntry !== "" && !isNaN(Number(trade.rrEntry))) ? Number(trade.rrEntry) : Number(trade.entry);
+            var entryCandleTime = (entryTime && baseEntry) ? findBestTradeCandleTime(chartDataToUse, entryTime, baseEntry) : null;
             var timeScale = currentLwChart ? currentLwChart.timeScale() : null;
             var startX = (timeScale && entryCandleTime !== null) ? timeScale.timeToCoordinate(entryCandleTime) : null;
             if (startX === null || isNaN(startX)) {
@@ -13637,17 +13620,11 @@
           }
 
           if (handleType === "entry") {
-            trade.entry = price;
+            trade.rrEntry = price;
           } else if (handleType === "tp") {
             trade.tp = price;
           } else if (handleType === "sl") {
             trade.sl = price;
-          }
-
-          if (trade.entry && trade.exit) {
-            var diff = isLong ? (trade.exit - trade.entry) : (trade.entry - trade.exit);
-            var vol = Number(trade.volume) || 1;
-            trade.pnl = diff * vol;
           }
 
           renderRiskRewardOverlay(trade);
@@ -13674,16 +13651,9 @@
             renderRiskRewardOverlay(trade);
           }
 
-          if (typeof autoCommitTradeEdits === "function") autoCommitTradeEdits();
-          if (typeof updateTradeTagsInRenderedTable === "function") updateTradeTagsInRenderedTable(trade);
-          if (typeof renderTable === "function") renderTable({ skipAnimation: true });
-
-          var manEntry = document.getElementById("manEntry");
-          if (manEntry && trade.entry) manEntry.value = trade.entry;
-          var manExit = document.getElementById("manExit");
-          if (manExit && trade.exit) manExit.value = trade.exit;
-          var manPnL = document.getElementById("manPnL");
-          if (manPnL && trade.pnl !== undefined) manPnL.value = trade.pnl;
+          if (typeof scheduleSilentTradeSave === "function") {
+            scheduleSilentTradeSave();
+          }
         });
 
         window.addEventListener("pointercancel", function () {
@@ -17590,7 +17560,9 @@
 
         var entryTime = trade.time ? toChartTimestampFromLocalDate(trade.time) : null;
         var exitTime = trade.exitTime ? toChartTimestampFromLocalDate(trade.exitTime) : null;
-        var entryPrice = Number(trade.entry);
+        var entryPrice = (trade.rrEntry !== undefined && trade.rrEntry !== null && trade.rrEntry !== "" && !isNaN(Number(trade.rrEntry)))
+          ? Number(trade.rrEntry)
+          : Number(trade.entry);
         var exitPrice = Number(trade.exit);
         if (!entryTime || !entryPrice || isNaN(entryPrice)) return;
 
