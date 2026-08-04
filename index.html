@@ -1246,20 +1246,19 @@
         main:has(#view-calendar:not(.hidden)),
         main:has(#view-flowchart:not(.hidden)) {
           padding-bottom: 0 !important;
-          overflow: hidden;
         }
         #view-calendar:not(.hidden),
         #view-flowchart:not(.hidden) {
           display: flex !important;
           flex-direction: column;
-          height: calc(100dvh - 126px) !important;
-          min-height: 0;
+          min-height: calc(100dvh - 126px);
           padding-bottom: 0 !important;
         }
         #calendarGridWrapper,
         #flowchartWorkspace {
           flex: 1 1 auto;
           min-height: 0;
+          overflow-y: auto;
         }
         #calendarGridWrapper > div {
           display: flex;
@@ -1268,11 +1267,14 @@
         }
         #calendarGrid {
           flex: 1 1 auto;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
           min-height: 0;
         }
         #calendarGrid > div {
-          flex: 1 1 0;
-          min-height: 82px;
+          flex: 1 1 0% !important;
+          min-height: 95px;
         }
       }
 
@@ -8119,7 +8121,10 @@
         for (var i = 1; i < startDayOfWeek; i++) {
           var emptyCell = document.createElement("div");
           emptyCell.className =
-            "calendar-cell opacity-30 flex items-center justify-center";
+            "calendar-cell opacity-20 flex flex-col justify-between p-3 pointer-events-none select-none min-h-[95px]";
+          emptyCell.innerHTML =
+            '<div class="text-[12px] font-bold text-transparent">&nbsp;</div>' +
+            '<div class="mt-2 flex flex-col items-start"><div class="text-[11px] text-transparent mb-1">&nbsp;</div><div class="text-[15px] font-bold text-transparent">&nbsp;</div></div>';
           currentWeekRow.appendChild(emptyCell);
         }
 
@@ -8142,8 +8147,8 @@
           }
 
           cell.className =
-            "calendar-cell p-3 flex flex-col justify-between relative" +
-            (isToday ? " !border-slate-300" : "");
+            "calendar-cell p-3 flex flex-col justify-between relative min-h-[95px] transition-all" +
+            (isToday ? " !border-slate-300 ring-1 ring-slate-300/30" : "");
 
           var pnlClass =
             dayStats.net > 0
@@ -8188,7 +8193,10 @@
               for (var p = currentDayOfWeek; p < 7; p++) {
                 var emptyPad = document.createElement("div");
                 emptyPad.className =
-                  "calendar-cell opacity-30 flex items-center justify-center";
+                  "calendar-cell opacity-20 flex flex-col justify-between p-3 pointer-events-none select-none min-h-[95px]";
+                emptyPad.innerHTML =
+                  '<div class="text-[12px] font-bold text-transparent">&nbsp;</div>' +
+                  '<div class="mt-2 flex flex-col items-start"><div class="text-[11px] text-transparent mb-1">&nbsp;</div><div class="text-[15px] font-bold text-transparent">&nbsp;</div></div>';
                 currentWeekRow.appendChild(emptyPad);
               }
             }
@@ -8200,14 +8208,14 @@
                   ? "pnl-loss"
                   : "text-white";
             var weekCell = document.createElement("div");
-            weekCell.className = "week-net-cell p-4";
+            weekCell.className = "week-net-cell p-3 flex flex-col justify-between min-h-[95px] rounded-md";
             weekCell.innerHTML =
-              '<span class="text-[10px] uppercase text-slate-200 tracking-widest mb-1">Week Netto</span>' +
-              '<span class="text-[18px] font-extrabold ' +
+              '<div><span class="text-[10px] uppercase text-slate-300 font-bold tracking-wider block mb-1">Week Netto</span>' +
+              '<span class="text-[16px] font-extrabold block ' +
               wPnlClass +
               '">' +
               fmtUSD(weekNet) +
-              "</span>" +
+              "</span></div>" +
               '<span class="text-[10px] uppercase text-slate-400 font-bold mt-2 tracking-wider">' +
               weekTrades +
               " TRADES</span>";
