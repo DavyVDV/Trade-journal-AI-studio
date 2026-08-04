@@ -13508,9 +13508,7 @@
             trade.sl = isLong ? (entryPrice - defaultRDistance) : (entryPrice + defaultRDistance);
           }
           if (trade.tp === undefined || trade.tp === null || trade.tp === "" || isNaN(Number(trade.tp))) {
-            var slDist = Math.abs(entryPrice - Number(trade.sl));
-            var rDist = slDist > 0.001 ? slDist : defaultRDistance;
-            trade.tp = isLong ? (entryPrice + rDist) : (entryPrice - rDist);
+            trade.tp = isLong ? (entryPrice + defaultRDistance) : (entryPrice - defaultRDistance);
           }
 
           activeRrDrag = { handleType: handleType, trade: trade };
@@ -17543,23 +17541,17 @@
 
         var slPrice = (trade.sl !== undefined && trade.sl !== null && trade.sl !== "" && !isNaN(Number(trade.sl)))
           ? Number(trade.sl)
-          : null;
+          : (isLong ? (entryPrice - defaultRDistance) : (entryPrice + defaultRDistance));
+
         var tpPrice = (trade.tp !== undefined && trade.tp !== null && trade.tp !== "" && !isNaN(Number(trade.tp)))
           ? Number(trade.tp)
-          : null;
+          : (isLong ? (entryPrice + defaultRDistance) : (entryPrice - defaultRDistance));
 
-        if (slPrice === null && tpPrice !== null) {
-          var tpDist = Math.abs(tpPrice - entryPrice);
-          var distToUse = tpDist > 0.01 ? tpDist : defaultRDistance;
-          slPrice = isLong ? (entryPrice - distToUse) : (entryPrice + distToUse);
-        } else if (slPrice === null) {
-          slPrice = isLong ? (entryPrice - defaultRDistance) : (entryPrice + defaultRDistance);
+        if (trade.sl === undefined || trade.sl === null || trade.sl === "" || isNaN(Number(trade.sl))) {
+          trade.sl = slPrice;
         }
-
-        if (tpPrice === null) {
-          var rDist = Math.abs(entryPrice - slPrice);
-          if (rDist <= 0.001) rDist = defaultRDistance;
-          tpPrice = isLong ? (entryPrice + rDist) : (entryPrice - rDist);
+        if (trade.tp === undefined || trade.tp === null || trade.tp === "" || isNaN(Number(trade.tp))) {
+          trade.tp = tpPrice;
         }
 
         var oneR = Math.abs(entryPrice - slPrice);
