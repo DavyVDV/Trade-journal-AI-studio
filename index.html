@@ -11576,11 +11576,7 @@
           if (rIdx === 0) {
             rowTop = Math.max(0, minRawTop < 25 ? 0 : minRawTop);
           } else {
-            if (minRawTop - (prevRowBottom + gap) < 120) {
-              rowTop = prevRowBottom + gap;
-            } else {
-              rowTop = minRawTop;
-            }
+            rowTop = prevRowBottom + gap;
           }
 
           row.forEach(function (item) {
@@ -12255,7 +12251,7 @@
         if (containerWidth < 500) cols = 1;
 
         var targetWidth =
-          Math.floor((containerWidth - gap * (cols - 1)) / cols) - 1;
+          Math.floor((containerWidth - gap * (cols - 1)) / cols);
         if (targetWidth < 180) targetWidth = 180;
 
         var rowHeight = Math.max(320, Math.min(520, Math.round(targetWidth * 0.65)));
