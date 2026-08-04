@@ -3539,7 +3539,7 @@
         </div>
 
         <div
-          class="bg-terminal-card border border-terminal p-4 min-h-[300px] flex flex-col relative rounded-sm"
+          class="bg-terminal-card border border-terminal p-4 min-h-[320px] md:min-h-[400px] xl:min-h-[480px] 2xl:min-h-[560px] flex flex-col relative rounded-sm"
         >
           <div class="flex justify-between items-center mb-3">
             <div class="flex items-center gap-2">
@@ -3559,7 +3559,7 @@
               </button>
             </div>
           </div>
-          <div class="flex-1 w-full relative min-h-[250px]">
+          <div class="flex-1 w-full relative min-h-[260px] md:min-h-[340px] xl:min-h-[420px] 2xl:min-h-[500px]">
             <canvas id="analyticsPnlChart"></canvas>
           </div>
         </div>
@@ -7126,6 +7126,16 @@
                 cc.seriesMode = "separate";
                 needsFix = true;
               }
+              if (!cc.width || cc.width < 100) { cc.width = 400; needsFix = true; }
+              if (!cc.height || cc.height < 100) { cc.height = 380; needsFix = true; }
+
+              // Auto-correct old flattened chart aspect ratios (height/width < 0.50)
+              var ratio = cc.height / cc.width;
+              if (ratio < 0.50 || isNaN(ratio)) {
+                cc.height = Math.round(cc.width * 0.65);
+                needsFix = true;
+              }
+
               if (cc.x === 0 && cc.y === 0) zeros++;
               if (
                 cc.x === undefined ||
@@ -11466,19 +11476,40 @@
         });
       }
 
+      var customChartsResizeObserver = null;
+      function setupCustomChartsResizeObserver() {
+        var container = document.getElementById("customChartsContainer");
+        if (!container || customChartsResizeObserver) return;
+        if (typeof ResizeObserver !== "undefined") {
+          var timer = null;
+          customChartsResizeObserver = new ResizeObserver(function () {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(function () {
+              if (typeof activeTab !== "undefined" && activeTab === "analytics") {
+                renderCustomCharts();
+              }
+            }, 80);
+          });
+          customChartsResizeObserver.observe(container);
+        }
+      }
+
       function renderCustomCharts() {
         var container = document.getElementById("customChartsContainer");
         if (!container) return;
+        setupCustomChartsResizeObserver();
         container.innerHTML = "";
 
         var containerWidth = container.clientWidth || 1200;
+        var gap = 16;
 
-        customCharts.forEach(function (cc, index) {
-          if (!cc.width) cc.width = 400;
-          if (!cc.height) cc.height = 380;
+        var items = customCharts.map(function (cc, index) {
+          if (!cc.width || cc.width < 100) cc.width = 400;
+          if (!cc.height || cc.height < 100) cc.height = 380;
           var baseW = cc.baseWidth || Math.max(1200, (cc.x || 0) + (cc.width || 400));
           cc.baseWidth = baseW;
 
+          var scale = baseW > 0 ? (containerWidth / baseW) : 1;
           var leftPercent = Math.max(0, ((cc.x || 0) / baseW) * 100);
           var widthPercent = Math.max(5, ((cc.width || 400) / baseW) * 100);
 
@@ -11486,24 +11517,98 @@
             widthPercent = 100 - leftPercent;
           }
 
+          var heightRatio = cc.height / cc.width;
+          if (heightRatio < 0.45 || isNaN(heightRatio)) heightRatio = 0.65;
+          if (heightRatio > 1.15) heightRatio = 1.15;
+
+          var renderWidth = (widthPercent / 100) * containerWidth;
+          var renderHeight = Math.max(240, Math.min(550, Math.round(renderWidth * heightRatio)));
+          var rawRenderTop = Math.round((cc.y || 0) * scale);
+
+          return {
+            cc: cc,
+            index: index,
+            baseW: baseW,
+            scale: scale,
+            leftPercent: leftPercent,
+            widthPercent: widthPercent,
+            renderWidth: renderWidth,
+            renderHeight: renderHeight,
+            rawRenderTop: rawRenderTop
+          };
+        });
+
+        var sorted = items.slice().sort(function (a, b) {
+          if (Math.abs(a.rawRenderTop - b.rawRenderTop) > 35) {
+            return a.rawRenderTop - b.rawRenderTop;
+          }
+          return a.leftPercent - b.leftPercent;
+        });
+
+        var rows = [];
+        var currentRow = [];
+        var currentRowTop = -1;
+
+        sorted.forEach(function (item) {
+          if (currentRow.length === 0) {
+            currentRow.push(item);
+            currentRowTop = item.rawRenderTop;
+          } else if (Math.abs(item.rawRenderTop - currentRowTop) <= 35) {
+            currentRow.push(item);
+          } else {
+            rows.push(currentRow);
+            currentRow = [item];
+            currentRowTop = item.rawRenderTop;
+          }
+        });
+        if (currentRow.length > 0) rows.push(currentRow);
+
+        var prevRowBottom = 0;
+        rows.forEach(function (row, rIdx) {
+          var maxH = 0;
+          var minRawTop = Infinity;
+          row.forEach(function (item) {
+            if (item.renderHeight > maxH) maxH = item.renderHeight;
+            if (item.rawRenderTop < minRawTop) minRawTop = item.rawRenderTop;
+          });
+
+          var rowTop;
+          if (rIdx === 0) {
+            rowTop = Math.max(0, minRawTop < 25 ? 0 : minRawTop);
+          } else {
+            if (minRawTop - (prevRowBottom + gap) < 120) {
+              rowTop = prevRowBottom + gap;
+            } else {
+              rowTop = minRawTop;
+            }
+          }
+
+          row.forEach(function (item) {
+            item.renderTop = rowTop;
+          });
+
+          prevRowBottom = rowTop + maxH;
+        });
+
+        container.style.minHeight = Math.max(400, prevRowBottom + 60) + "px";
+
+        items.forEach(function (item) {
+          var cc = item.cc;
+          var index = item.index;
+          var leftPercent = item.leftPercent;
+          var widthPercent = item.widthPercent;
+          var renderHeight = item.renderHeight;
+          var renderTop = item.renderTop;
+          var renderWidth = item.renderWidth;
+
           var wrapper = document.createElement("div");
           wrapper.className =
             "bg-terminal-card border border-terminal rounded-sm absolute flex flex-col";
           wrapper.style.width = widthPercent.toFixed(4) + "%";
-          wrapper.style.height = cc.height + "px";
+          wrapper.style.height = renderHeight + "px";
           wrapper.style.left = leftPercent.toFixed(4) + "%";
-          wrapper.style.top = (cc.y || 0) + "px";
+          wrapper.style.top = renderTop + "px";
           wrapper.style.overflow = "hidden";
-
-          var updateContainerHeight = function () {
-            var maxH = 0;
-            customCharts.forEach(function (c) {
-              var bottom = (c.y || 0) + (c.height || 380);
-              if (bottom > maxH) maxH = bottom;
-            });
-            container.style.minHeight = maxH + 100 + "px";
-          };
-          updateContainerHeight();
 
           var header = document.createElement("div");
           header.className =
@@ -11522,8 +11627,9 @@
             var startX = e.clientX;
             var startY = e.clientY;
             var startRenderX = (cc.x || 0) * scale;
-            var startRenderY = cc.y || 0;
+            var startRenderY = (cc.y || 0) * scale;
             var renderW = (cc.width || 400) * scale;
+            var renderH = (cc.height || 380) * scale;
 
             wrapper.style.zIndex = 100;
 
@@ -11569,8 +11675,8 @@
                 var otherScale = currContainerW / otherBaseW;
                 var otherX = (other.x || 0) * otherScale;
                 var otherW = (other.width || 400) * otherScale;
-                var otherY = other.y || 0;
-                var otherH = other.height || 380;
+                var otherY = (other.y || 0) * otherScale;
+                var otherH = (other.height || 380) * otherScale;
 
                 var targetXs = [otherX, otherX + otherW];
                 targetXs.forEach(function (targetX) {
@@ -11601,9 +11707,9 @@
                   }
                   if (
                     !snappedY &&
-                    Math.abs(newRenderY + (cc.height || 380) - targetY) < snapThresh
+                    Math.abs(newRenderY + renderH - targetY) < snapThresh
                   ) {
-                    newRenderY = targetY - (cc.height || 380);
+                    newRenderY = targetY - renderH;
                     snappedY = true;
                     guideY.style.display = "block";
                     guideY.style.top = targetY + "px";
@@ -11622,6 +11728,7 @@
               cc.x = newRenderX;
               cc.y = newRenderY;
               cc.width = renderW;
+              cc.height = renderH;
             };
 
             var onPointerUp = function (ev) {
@@ -11753,8 +11860,9 @@
             var startX = e.clientX;
             var startY = e.clientY;
             var startRenderW = (cc.width || 400) * scale;
-            var startH = cc.height || 380;
+            var startRenderH = (cc.height || 380) * scale;
             var renderX = (cc.x || 0) * scale;
+            var renderY = (cc.y || 0) * scale;
 
             var guideX = document.getElementById("snapGuideX");
             var guideY = document.getElementById("snapGuideY");
@@ -11763,16 +11871,16 @@
               var dx = ev.clientX - startX;
               var dy = ev.clientY - startY;
               var newRenderW = startRenderW + dx;
-              var newH = startH + dy;
+              var newRenderH = startRenderH + dy;
               if (newRenderW < 180) newRenderW = 180;
-              if (newH < 150) newH = 150;
+              if (newRenderH < 150) newRenderH = 150;
 
               var snapThresh = 15;
               var snappedX = false;
               var snappedY = false;
 
               var currentRight = renderX + newRenderW;
-              var currentBottom = (cc.y || 0) + newH;
+              var currentBottom = renderY + newRenderH;
 
               customCharts.forEach(function (other) {
                 if (other === cc) return;
@@ -11780,8 +11888,8 @@
                 var otherScale = currContainerW / otherBaseW;
                 var otherX = (other.x || 0) * otherScale;
                 var otherW = (other.width || 400) * otherScale;
-                var otherY = other.y || 0;
-                var otherH = other.height || 380;
+                var otherY = (other.y || 0) * otherScale;
+                var otherH = (other.height || 380) * otherScale;
 
                 if (!snappedX && Math.abs(newRenderW - otherW) < snapThresh) {
                   newRenderW = otherW;
@@ -11810,15 +11918,15 @@
                   }
                 }
 
-                if (!snappedY && Math.abs(newH - otherH) < snapThresh) {
-                  newH = otherH;
+                if (!snappedY && Math.abs(newRenderH - otherH) < snapThresh) {
+                  newRenderH = otherH;
                   snappedY = true;
                 }
                 if (
                   !snappedY &&
                   Math.abs(currentBottom - otherY) < snapThresh
                 ) {
-                  newH = otherY - (cc.y || 0);
+                  newRenderH = otherY - renderY;
                   snappedY = true;
                   if (guideY) {
                     guideY.style.display = "block";
@@ -11830,7 +11938,7 @@
                   Math.abs(currentBottom - (otherY + otherH)) <
                     snapThresh
                 ) {
-                  newH = otherY + otherH - (cc.y || 0);
+                  newRenderH = otherY + otherH - renderY;
                   snappedY = true;
                   if (guideY) {
                     guideY.style.display = "block";
@@ -11844,12 +11952,13 @@
 
               var widthPercent = (newRenderW / currContainerW) * 100;
               wrapper.style.width = widthPercent.toFixed(4) + "%";
-              wrapper.style.height = newH + "px";
+              wrapper.style.height = newRenderH + "px";
 
               cc.baseWidth = currContainerW;
               cc.width = newRenderW;
-              cc.height = newH;
+              cc.height = newRenderH;
               cc.x = renderX;
+              cc.y = renderY;
             };
 
             var onPointerUp = function (ev) {
@@ -12149,10 +12258,11 @@
           Math.floor((containerWidth - gap * (cols - 1)) / cols) - 1;
         if (targetWidth < 180) targetWidth = 180;
 
+        var rowHeight = Math.max(320, Math.min(520, Math.round(targetWidth * 0.65)));
+
         var row = 0;
         var col = 0;
         var yOffset = 0;
-        var rowHeight = 380;
 
         customCharts.forEach(function (cc) {
           cc.baseWidth = containerWidth;
@@ -12225,7 +12335,7 @@
         // Apply layout presets
         if (presetKey === "grid-1col") {
           var yOffset = 0;
-          var rowH = 480;
+          var rowH = Math.max(400, Math.min(650, Math.round(containerWidth * 0.40)));
           customCharts.forEach(function (cc) {
             cc.baseWidth = containerWidth;
             cc.width = containerWidth;
@@ -12237,7 +12347,25 @@
         } else if (presetKey === "grid-2col") {
           var cols = containerWidth < 600 ? 1 : 2;
           var targetW = Math.floor((containerWidth - gap * (cols - 1)) / cols);
-          var rowH = 400;
+          var rowH = Math.max(340, Math.min(580, Math.round(targetW * 0.60)));
+          var col = 0;
+          var yOffset = 0;
+          customCharts.forEach(function (cc) {
+            cc.baseWidth = containerWidth;
+            cc.width = targetW;
+            cc.height = rowH;
+            if (col >= cols) {
+              col = 0;
+              yOffset += rowH + gap;
+            }
+            cc.x = col * (targetW + gap);
+            cc.y = yOffset;
+            col++;
+          });
+        } else if (presetKey === "grid-3col") {
+          var cols = containerWidth < 500 ? 1 : (containerWidth < 800 ? 2 : 3);
+          var targetW = Math.floor((containerWidth - gap * (cols - 1)) / cols);
+          var rowH = Math.max(320, Math.min(500, Math.round(targetW * 0.65)));
           var col = 0;
           var yOffset = 0;
           customCharts.forEach(function (cc) {
@@ -12255,7 +12383,7 @@
         } else if (presetKey === "grid-4col") {
           var cols = containerWidth < 500 ? 1 : (containerWidth < 900 ? 2 : 4);
           var targetW = Math.floor((containerWidth - gap * (cols - 1)) / cols);
-          var rowH = 340;
+          var rowH = Math.max(280, Math.min(450, Math.round(targetW * 0.70)));
           var col = 0;
           var yOffset = 0;
           customCharts.forEach(function (cc) {
@@ -12275,10 +12403,10 @@
           var idx = 0;
           while (idx < customCharts.length) {
             var rowType = Math.floor(idx / 2) % 3;
-            var rowH = 380;
             if (rowType === 0 && idx + 1 < customCharts.length) {
               var w1 = Math.floor((containerWidth - gap) * 0.60);
               var w2 = containerWidth - gap - w1;
+              var rowH = Math.max(360, Math.min(650, Math.round(w1 * 0.65)));
               customCharts[idx].baseWidth = containerWidth;
               customCharts[idx].width = w1;
               customCharts[idx].height = rowH;
@@ -12294,6 +12422,7 @@
             } else if (rowType === 1 && idx + 1 < customCharts.length) {
               var w1 = Math.floor((containerWidth - gap) * 0.40);
               var w2 = containerWidth - gap - w1;
+              var rowH = Math.max(360, Math.min(650, Math.round(w2 * 0.65)));
               customCharts[idx].baseWidth = containerWidth;
               customCharts[idx].width = w1;
               customCharts[idx].height = rowH;
@@ -12307,12 +12436,12 @@
               customCharts[idx + 1].y = yOffset;
               idx += 2;
             } else {
+              var rowH = Math.max(450, Math.min(750, Math.round(containerWidth * 0.40)));
               customCharts[idx].baseWidth = containerWidth;
               customCharts[idx].width = containerWidth;
-              customCharts[idx].height = 450;
+              customCharts[idx].height = rowH;
               customCharts[idx].x = 0;
               customCharts[idx].y = yOffset;
-              rowH = 450;
               idx += 1;
             }
             yOffset += rowH + gap;
