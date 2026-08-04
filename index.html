@@ -13489,6 +13489,59 @@
         }
       }
 
+      function getJournalTradeTickSize(trade, chartData) {
+        if (trade && trade.tickSize && Number(trade.tickSize) > 0) {
+          return Number(trade.tickSize);
+        }
+        var sym = String((trade && (trade.symbol || trade.instrument || trade.asset || "")) || "").toUpperCase().trim();
+        if (sym) {
+          if (typeof BACKTEST_INSTRUMENTS !== "undefined" && BACKTEST_INSTRUMENTS[sym] && BACKTEST_INSTRUMENTS[sym].tickSize) {
+            return BACKTEST_INSTRUMENTS[sym].tickSize;
+          }
+          if (["ES", "MES", "NQ", "MNQ", "RTY", "M2K", "FDAX", "FESX"].indexOf(sym) >= 0) {
+            return 0.25;
+          }
+          if (["YM", "MYM", "CL", "MCL"].indexOf(sym) >= 0) {
+            return 0.01;
+          }
+          if (["GC", "MGC"].indexOf(sym) >= 0) {
+            return 0.1;
+          }
+        }
+
+        if (chartData && chartData.length > 0) {
+          var minDiff = Infinity;
+          var count = Math.min(chartData.length, 120);
+          var startIdx = Math.max(0, chartData.length - count);
+          var prices = [];
+          for (var i = startIdx; i < chartData.length; i++) {
+            var c = chartData[i];
+            if (typeof c.open === "number" && !isNaN(c.open)) prices.push(c.open);
+            if (typeof c.high === "number" && !isNaN(c.high)) prices.push(c.high);
+            if (typeof c.low === "number" && !isNaN(c.low)) prices.push(c.low);
+            if (typeof c.close === "number" && !isNaN(c.close)) prices.push(c.close);
+          }
+          prices.sort(function (a, b) { return a - b; });
+          for (var j = 1; j < prices.length; j++) {
+            var diff = Math.abs(prices[j] - prices[j - 1]);
+            diff = Math.round(diff * 1e8) / 1e8;
+            if (diff > 0.00000001 && diff < minDiff) {
+              minDiff = diff;
+            }
+          }
+          if (minDiff !== Infinity && minDiff > 0) {
+            return minDiff;
+          }
+        }
+
+        var samplePrice = Math.abs(trade && trade.entry ? Number(trade.entry) : 100);
+        if (samplePrice > 10000) return 0.25;
+        if (samplePrice > 1000) return 0.25;
+        if (samplePrice > 10) return 0.01;
+        if (samplePrice > 1) return 0.001;
+        return 0.00001;
+      }
+
       function bindRrLineDrag(handleEl, handleType, trade) {
         handleEl.addEventListener("pointerdown", function (event) {
           if (journalRrLocked) return;
@@ -13504,11 +13557,19 @@
             if (eDist > 0.05) defaultRDistance = eDist;
           }
 
+          var chartDataToUse = currentJournalChartData && currentJournalChartData.length
+            ? currentJournalChartData
+            : ((globalChartData && globalChartData.length > 0) ? globalChartData : (trade ? trade.chartData : null));
+          var step = getJournalTradeTickSize(trade, chartDataToUse);
+          var decimals = (String(step).indexOf(".") >= 0) ? String(step).split(".")[1].length : 0;
+
           if (trade.sl === undefined || trade.sl === null || trade.sl === "" || isNaN(Number(trade.sl))) {
-            trade.sl = isLong ? (entryPrice - defaultRDistance) : (entryPrice + defaultRDistance);
+            var rawSl = isLong ? (entryPrice - defaultRDistance) : (entryPrice + defaultRDistance);
+            trade.sl = Number((Math.round(rawSl / step) * step).toFixed(Math.max(decimals, 2)));
           }
           if (trade.tp === undefined || trade.tp === null || trade.tp === "" || isNaN(Number(trade.tp))) {
-            trade.tp = isLong ? (entryPrice + defaultRDistance) : (entryPrice - defaultRDistance);
+            var rawTp = isLong ? (entryPrice + defaultRDistance) : (entryPrice - defaultRDistance);
+            trade.tp = Number((Math.round(rawTp / step) * step).toFixed(Math.max(decimals, 2)));
           }
 
           activeRrDrag = { handleType: handleType, trade: trade };
@@ -13537,17 +13598,21 @@
           var handleType = activeRrDrag.handleType;
           var isLong = String(trade.side || "").toLowerCase().indexOf("buy") >= 0 || String(trade.side || "").toLowerCase() === "long";
 
-          var samplePrice = Math.abs(trade && trade.entry ? Number(trade.entry) : price);
-          var step = 0.01;
-          if (samplePrice > 10000) step = 0.25;
-          else if (samplePrice > 1000) step = 0.1;
-          else if (samplePrice > 100) step = 0.05;
-          else if (samplePrice > 10) step = 0.01;
-          else if (samplePrice > 1) step = 0.001;
-          else if (samplePrice > 0.1) step = 0.0001;
-          else step = 0.00001;
+          var chartDataToUse = currentJournalChartData && currentJournalChartData.length
+            ? currentJournalChartData
+            : ((globalChartData && globalChartData.length > 0) ? globalChartData : (trade ? trade.chartData : null));
 
+          var step = getJournalTradeTickSize(trade, chartDataToUse);
           price = Math.round(price / step) * step;
+
+          var decimals = 2;
+          var stepStr = String(step);
+          if (stepStr.indexOf(".") >= 0) {
+            decimals = stepStr.split(".")[1].length;
+          } else if (step >= 1) {
+            decimals = 0;
+          }
+          price = Number(price.toFixed(Math.max(decimals, 2)));
 
           if (handleType === "width") {
             var mouseX = e.clientX - rect.left;
@@ -17539,13 +17604,16 @@
           if (eDist > 0.05) defaultRDistance = eDist;
         }
 
+        var step = getJournalTradeTickSize(trade, chartDataToUse);
+        var decimals = (String(step).indexOf(".") >= 0) ? String(step).split(".")[1].length : 0;
+
         var slPrice = (trade.sl !== undefined && trade.sl !== null && trade.sl !== "" && !isNaN(Number(trade.sl)))
           ? Number(trade.sl)
-          : (isLong ? (entryPrice - defaultRDistance) : (entryPrice + defaultRDistance));
+          : Number((Math.round((isLong ? (entryPrice - defaultRDistance) : (entryPrice + defaultRDistance)) / step) * step).toFixed(Math.max(decimals, 2)));
 
         var tpPrice = (trade.tp !== undefined && trade.tp !== null && trade.tp !== "" && !isNaN(Number(trade.tp)))
           ? Number(trade.tp)
-          : (isLong ? (entryPrice + defaultRDistance) : (entryPrice - defaultRDistance));
+          : Number((Math.round((isLong ? (entryPrice + defaultRDistance) : (entryPrice - defaultRDistance)) / step) * step).toFixed(Math.max(decimals, 2)));
 
         if (trade.sl === undefined || trade.sl === null || trade.sl === "" || isNaN(Number(trade.sl))) {
           trade.sl = slPrice;
