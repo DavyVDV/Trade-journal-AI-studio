@@ -7012,7 +7012,8 @@
       }
 
       function toggleDropdown(id) {
-        document.getElementById(id).classList.toggle("hidden");
+        var el = document.getElementById(id);
+        if (el) el.classList.toggle("hidden");
       }
 
       document.addEventListener("click", function (event) {
@@ -7133,7 +7134,8 @@
         timeFilter.startTime = document.getElementById("timeFilterStart").value;
         timeFilter.endTime = document.getElementById("timeFilterEnd").value;
 
-        document.getElementById("timeFilterDropdown").classList.add("hidden");
+        var timeDd = document.getElementById("timeFilterDropdown");
+        if (timeDd) timeDd.classList.add("hidden");
         updateUI();
       }
 
@@ -7148,7 +7150,8 @@
         var dateEnd = document.getElementById("dateFilterEnd");
         if (dateEnd) dateEnd.value = "";
 
-        document.getElementById("timeFilterDropdown").classList.add("hidden");
+        var timeDd = document.getElementById("timeFilterDropdown");
+        if (timeDd) timeDd.classList.add("hidden");
         updateUI();
       }
 
@@ -7211,7 +7214,8 @@
           if (cb.value === "long") sideFilter.long = cb.checked;
           if (cb.value === "short") sideFilter.short = cb.checked;
         });
-        document.getElementById("sideFilterDropdown").classList.add("hidden");
+        var sideDd = document.getElementById("sideFilterDropdown");
+        if (sideDd) sideDd.classList.add("hidden");
         updateUI();
       }
 
@@ -10844,9 +10848,8 @@
       function setAnalyticsLogic(logic) {
         analyticsFilterLogic = logic;
         localStorage.setItem("qt_analytics_logic", analyticsFilterLogic);
-        document
-          .getElementById("analyticsLogicDropdownMenu")
-          .classList.add("hidden");
+        var menu = document.getElementById("analyticsLogicDropdownMenu");
+        if (menu) menu.classList.add("hidden");
         renderAnalyticsView();
       }
 
@@ -11097,7 +11100,8 @@
         saveData({ skipUpdate: true });
         renderTable({ skipAnimation: true });
         renderAnalyticsView();
-        if (!document.getElementById("noteModal").classList.contains("hidden")) {
+        var nm1 = document.getElementById("noteModal");
+        if (nm1 && !nm1.classList.contains("hidden")) {
           renderModalTags();
         }
       }
@@ -11161,7 +11165,8 @@
 
             saveData();
             renderAnalyticsView();
-            if (!document.getElementById("noteModal").classList.contains("hidden")) {
+            var nm2 = document.getElementById("noteModal");
+            if (nm2 && !nm2.classList.contains("hidden")) {
               renderModalTags();
             }
           },
@@ -12728,6 +12733,7 @@
       }
 
       function applyTagColor(element, tag) {
+        if (!element) return;
         var backgroundColor = getTagColor(tag);
         var textColor = getTagTextColor(backgroundColor);
         element.classList.add("colored-tag");
@@ -12744,14 +12750,12 @@
         saveGlobalTagColors();
         renderTable({ skipAnimation: true });
         renderAnalyticsView();
-        if (!document.getElementById("noteModal").classList.contains("hidden")) {
+        var nm = document.getElementById("noteModal");
+        if (nm && !nm.classList.contains("hidden")) {
           renderModalTags();
         }
-        if (
-          !document
-            .getElementById("customChartSettingsModal")
-            .classList.contains("hidden")
-        ) {
+        var ccModal = document.getElementById("customChartSettingsModal");
+        if (ccModal && !ccModal.classList.contains("hidden")) {
           renderCCModalTags();
         }
       }
@@ -17532,8 +17536,10 @@
             setJournalChartImportStatus(parsedData.length.toLocaleString("nl-BE") + " 30s-bars geladen", 100, "done");
             alert(parsedData.length + " candles toegevoegd aan de globale grafiekdata.");
             
-            var tradeId = document.getElementById("editTradeId").value;
-            if (tradeId && !document.getElementById("noteModal").classList.contains("hidden")) {
+            var editTradeIdEl = document.getElementById("editTradeId");
+            var tradeId = editTradeIdEl ? editTradeIdEl.value : "";
+            var nmModal = document.getElementById("noteModal");
+            if (tradeId && nmModal && !nmModal.classList.contains("hidden")) {
               var trade = trades.find(function(t) { return String(t.id) === String(tradeId); });
               if (trade) {
                  renderLightweightChart(trade);
