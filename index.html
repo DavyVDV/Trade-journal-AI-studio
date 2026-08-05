@@ -3426,250 +3426,53 @@
 
       <!-- ANALYTICS VIEW -->
       <div id="view-analytics" class="space-y-6 hidden pb-64">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div
-            class="bg-terminal-card border border-terminal p-4 rounded-sm lg:col-span-2"
-          >
-            <div class="flex justify-between items-center mb-2">
-              <span
-                class="text-[10px] font-mono uppercase tracking-widest text-slate-200 block"
-                id="analyticsLogicLabel"
-                >Tag Filter (AND-Logica)</span
-              >
-              <div class="relative">
-                <button
-                  onclick="
-                    document
-                      .getElementById('analyticsLogicDropdownMenu')
-                      .classList.toggle('hidden')
-                  "
-                  id="analyticsLogicDropdownBtn"
-                  class="bg-zinc-800 border border-slate-600 text-xs text-zinc-300 hover:text-white px-3 py-1 rounded-sm font-mono transition-colors flex items-center gap-2"
-                >
-                  <span id="analyticsLogicCurrentText">AND-Logica</span>
-                  <i class="fas fa-chevron-down text-[10px]"></i>
+        <!-- TAGS & GROEPEN BEHEERDER -->
+        <div class="bg-terminal-card border border-terminal p-4 md:p-5 rounded-sm font-mono text-xs">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-3 mb-4 border-b border-terminal gap-2">
+            <div>
+              <h2 class="text-sm font-bold uppercase tracking-wider text-zinc-200 flex items-center gap-2">
+                <i class="fas fa-tags text-blue-400"></i>
+                <span>Tags &amp; Groepen Bewerken</span>
+              </h2>
+              <p class="text-[11px] text-slate-400 mt-0.5">Beheer al je globale tags, wijzig namen en kleuren of deel ze in binnen overzichtelijke groepen.</p>
+            </div>
+            <div class="text-[11px] text-slate-300 bg-terminal-input px-3 py-1 rounded-sm border border-terminal font-bold shrink-0" id="tagBankSummary">
+              Geen tags aangemaakt.
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- ALLE TAGS BEHEERDER -->
+            <div class="flex flex-col min-h-0 bg-zinc-950/40 border border-terminal/80 rounded-sm p-3 md:p-4">
+              <div class="flex items-center justify-between mb-1 pb-2 border-b border-terminal/60">
+                <span class="text-xs font-mono font-bold uppercase tracking-widest text-slate-200">Alle Tags</span>
+                <button type="button" onclick="sortGlobalTagsAlphabetically()" class="text-[9px] text-zinc-400 hover:text-blue-300 border border-terminal px-2 py-0.5 rounded-sm flex items-center gap-1" title="Tags alfabetisch sorteren (A-Z)">
+                  <i class="fas fa-sort-alpha-down text-[9px]"></i><span>A-Z</span>
                 </button>
-                <div
-                  id="analyticsLogicDropdownMenu"
-                  class="hidden absolute right-0 top-full mt-1 w-48 bg-zinc-900 border border-zinc-700 rounded-sm shadow-xl z-[100] py-1"
-                >
-                  <button
-                    onclick="setAnalyticsLogic('AND')"
-                    class="w-full text-left px-3 py-2 text-xs font-mono text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-between"
-                  >
-                    <span>AND (Alle tags)</span>
-                    <i
-                      id="logicCheckAND"
-                      class="fas fa-check text-emerald-500 hidden"
-                    ></i>
-                  </button>
-                  <button
-                    onclick="setAnalyticsLogic('OR')"
-                    class="w-full text-left px-3 py-2 text-xs font-mono text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-between"
-                  >
-                    <span>OR (Elke tag)</span>
-                    <i
-                      id="logicCheckOR"
-                      class="fas fa-check text-emerald-500 hidden"
-                    ></i>
-                  </button>
-                </div>
+              </div>
+              <p class="text-[10px] text-slate-400 mb-3 font-mono">Wijzig een naam/kleur, versleep om te herschikken, of verwijder een tag definitief.</p>
+              <div id="globalTagManagerList" class="space-y-1.5 flex-1 min-h-[220px] max-h-[500px] overflow-y-auto pr-1"></div>
+            </div>
+
+            <!-- TAG GROEPEN BEHEERDER -->
+            <div class="flex flex-col min-h-0 bg-zinc-950/40 border border-terminal/80 rounded-sm p-3 md:p-4">
+              <div class="flex items-center justify-between mb-1 pb-2 border-b border-terminal/60">
+                <span class="text-xs font-mono font-bold uppercase tracking-widest text-slate-200">Tag Groepen</span>
+                <button type="button" onclick="sortTagGroupsAlphabetically()" class="text-[9px] text-zinc-400 hover:text-blue-300 border border-terminal px-2 py-0.5 rounded-sm flex items-center gap-1" title="Groepen alfabetisch sorteren (A-Z)">
+                  <i class="fas fa-sort-alpha-down text-[9px]"></i><span>Groepen A-Z</span>
+                </button>
+              </div>
+              <p class="text-[10px] text-slate-400 mb-3 font-mono">Versleep groepen en tags om ze te herschikken of in te delen.</p>
+              <div class="flex gap-2 mb-3 shrink-0">
+                <input id="newTagGroupInput" type="text" placeholder="NIEUWE GROEP NAAM" maxlength="40" class="flex-1 bg-terminal-input border border-terminal rounded-sm px-2.5 py-1.5 text-zinc-200 focus:outline-none uppercase text-xs" onkeydown="if(event.key==='Enter'){event.preventDefault();createTagGroup();}" />
+                <button onclick="createTagGroup()" class="px-3 py-1.5 bg-blue-900/30 border border-blue-800 text-blue-300 rounded-sm hover:bg-blue-900/50 uppercase tracking-wider text-[11px] font-bold whitespace-nowrap">Aanmaken</button>
+              </div>
+              <div id="tagGroupsList" class="space-y-2.5 flex-1 min-h-[160px] max-h-[380px] overflow-y-auto pr-1"></div>
+              <div class="mt-3 pt-3 border-t border-terminal shrink-0">
+                <span class="text-[10px] uppercase font-mono tracking-wider text-zinc-400 block mb-1.5">Ongegroepeerde Tags</span>
+                <div id="ungroupedTagsList" class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto"></div>
               </div>
             </div>
-            <div id="analyticsTagCloud" class="flex flex-wrap gap-1.5"></div>
-          </div>
-
-          <div class="bg-terminal-card border border-terminal p-4 rounded-sm">
-            <span
-              class="text-[10px] font-mono uppercase tracking-widest text-slate-200 block mb-2"
-              >Globale Tag Bank Beheerder</span
-            >
-            <p class="text-[11px] text-slate-200 mb-3 font-mono" id="tagBankSummary">
-              Geen tags aangemaakt.
-            </p>
-            <button
-              type="button"
-              onclick="openTagBankEditor()"
-              class="w-full px-3 py-1.5 bg-blue-900/30 border border-blue-800 text-blue-300 rounded-sm hover:bg-blue-900/50 uppercase tracking-wider text-[10px] font-bold"
-            >
-              <i class="fas fa-tags mr-1"></i> Tags &amp; Groepen Bewerken
-            </button>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div class="bg-terminal-card border border-terminal p-3 rounded-sm">
-            <span
-              class="text-[10px] font-mono uppercase tracking-wider text-slate-200 block"
-              >Gefilterde Netto P&amp;L</span
-            >
-            <h2
-              class="text-base font-bold font-mono mt-0.5 text-zinc-200"
-              id="tag-kpi-netpnl"
-            >
-              $0.00
-            </h2>
-          </div>
-          <div class="bg-terminal-card border border-terminal p-3 rounded-sm">
-            <span
-              class="text-[10px] font-mono uppercase tracking-wider text-slate-200 block"
-              >Gefilterd Winstpercentage</span
-            >
-            <h2
-              class="text-base font-bold font-mono mt-0.5 text-zinc-200"
-              id="tag-kpi-winrate"
-            >
-              0.0%
-            </h2>
-          </div>
-          <div class="bg-terminal-card border border-terminal p-3 rounded-sm">
-            <span
-              class="text-[10px] font-mono uppercase tracking-wider text-slate-200 block"
-              >Gefilterde Winstfactor</span
-            >
-            <h2
-              class="text-base font-bold font-mono mt-0.5 text-zinc-200"
-              id="tag-kpi-pf"
-            >
-              0.00
-            </h2>
-          </div>
-          <div class="bg-terminal-card border border-terminal p-3 rounded-sm">
-            <span
-              class="text-[10px] font-mono uppercase tracking-wider text-slate-200 block"
-              >Steekproef Grootte</span
-            >
-            <h2
-              class="text-base font-bold font-mono mt-0.5 text-zinc-200"
-              id="tag-kpi-count"
-            >
-              0
-            </h2>
-          </div>
-        </div>
-
-        <div
-          class="bg-terminal-card border border-terminal p-4 min-h-[320px] md:min-h-[400px] xl:min-h-[480px] 2xl:min-h-[560px] flex flex-col relative rounded-sm"
-        >
-          <div class="flex justify-between items-center mb-3">
-            <div class="flex items-center gap-2">
-              <span
-                id="analyticsMainChartTitleText"
-                class="text-[10px] font-mono uppercase tracking-widest text-slate-200 font-bold"
-                >GEFILTERDE EQUITY CURVE NETTO</span
-              >
-              <button
-                type="button"
-                onclick="editAnalyticsMainChartTitle()"
-                title="Titel bewerken"
-                class="text-zinc-400 hover:text-white transition-colors text-[10px] px-1.5 py-0.5 rounded border border-zinc-700/60 hover:border-zinc-500 bg-zinc-900/80 flex items-center gap-1 cursor-pointer"
-              >
-                <i class="fas fa-pencil-alt text-[9px]"></i>
-                <span class="text-[9px] uppercase font-mono">Titel bewerken</span>
-              </button>
-            </div>
-          </div>
-          <div class="flex-1 w-full relative min-h-[260px] md:min-h-[340px] xl:min-h-[420px] 2xl:min-h-[500px]">
-            <canvas id="analyticsPnlChart"></canvas>
-          </div>
-        </div>
-
-        <div
-          class="bg-terminal-card border border-terminal rounded-sm overflow-hidden"
-        >
-          <div class="overflow-x-auto">
-            <table
-              class="w-full text-left font-mono text-xs text-slate-200"
-              id="analyticsTable"
-            >
-              <thead
-                class="bg-zinc-900 text-slate-200 border-b border-terminal text-[10px] tracking-wider uppercase"
-              >
-                <tr>
-                  <th
-                    class="px-4 py-2.5 relative border-r border-zinc-700/50"
-                    id="ath_time"
-                    data-col-key="time"
-                  >
-                    <span style="pointer-events: none">Datum Uitvoering</span>
-                    <div
-                      class="col-resizer cursor-col-resize absolute right-0 top-0 w-2 h-full hover:bg-white/20 z-10"
-                      onmousedown="initColResize(event, this)"
-                    ></div>
-                  </th>
-                  <th
-                    class="px-4 py-2.5 relative border-r border-zinc-700/50"
-                    id="ath_symbol"
-                    data-col-key="symbol"
-                  >
-                    <span style="pointer-events: none">Symbool</span>
-                    <div
-                      class="col-resizer cursor-col-resize absolute right-0 top-0 w-2 h-full hover:bg-white/20 z-10"
-                      onmousedown="initColResize(event, this)"
-                    ></div>
-                  </th>
-                  <th
-                    class="px-4 py-2.5 relative border-r border-zinc-700/50"
-                    id="ath_side"
-                    data-col-key="side"
-                  >
-                    <span style="pointer-events: none">Kant</span>
-                    <div
-                      class="col-resizer cursor-col-resize absolute right-0 top-0 w-2 h-full hover:bg-white/20 z-10"
-                      onmousedown="initColResize(event, this)"
-                    ></div>
-                  </th>
-                  <th
-                    class="px-4 py-2.5 text-right relative border-r border-zinc-700/50"
-                    id="ath_volume"
-                    data-col-key="volume"
-                  >
-                    <span style="pointer-events: none">Grootte</span>
-                    <div
-                      class="col-resizer cursor-col-resize absolute right-0 top-0 w-2 h-full hover:bg-white/20 z-10"
-                      onmousedown="initColResize(event, this)"
-                    ></div>
-                  </th>
-                  <th
-                    class="px-4 py-2.5 text-right relative border-r border-zinc-700/50"
-                    id="ath_netpnl"
-                    data-col-key="netpnl"
-                  >
-                    <span style="pointer-events: none">Netto P&amp;L</span>
-                    <div
-                      class="col-resizer cursor-col-resize absolute right-0 top-0 w-2 h-full hover:bg-white/20 z-10"
-                      onmousedown="initColResize(event, this)"
-                    ></div>
-                  </th>
-                  <th
-                    class="px-4 py-2.5 relative border-r border-zinc-700/50"
-                    id="ath_tags"
-                    data-col-key="tags"
-                  >
-                    <span style="pointer-events: none"
-                      >Toegewezen Vector Tags</span
-                    >
-                    <div
-                      class="col-resizer cursor-col-resize absolute right-0 top-0 w-2 h-full hover:bg-white/20 z-10"
-                      onmousedown="initColResize(event, this)"
-                    ></div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody
-                id="analyticsTableBody"
-                class="divide-y divide-zinc-800/60"
-              >
-                <tr>
-                  <td
-                    colspan="6"
-                    class="px-4 py-6 text-center text-slate-200 italic"
-                  >
-                    Selecteer variabelen om resultaten te filteren.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
           </div>
         </div>
 
@@ -6452,12 +6255,15 @@
       }
 
       function openTagBankEditor() {
+        switchTab('analytics');
         renderGlobalTagManager();
-        document.getElementById("tagBankEditorModal").classList.remove("hidden");
+        var modal = document.getElementById("tagBankEditorModal");
+        if (modal) modal.classList.remove("hidden");
       }
 
       function closeTagBankEditor() {
-        document.getElementById("tagBankEditorModal").classList.add("hidden");
+        var modal = document.getElementById("tagBankEditorModal");
+        if (modal) modal.classList.add("hidden");
       }
 
       function createTagGroup() {
@@ -7674,15 +7480,30 @@
           }
           if (s) {
             trades = typeof s === "string" ? JSON.parse(s) : s;
+            if (!Array.isArray(trades)) trades = [];
             trades.forEach(function (t) {
-              if (typeof t.time === "string" || typeof t.time === "number") {
+              if (t.time && (typeof t.time === "string" || typeof t.time === "number")) {
                 t.time = new Date(t.time);
+              }
+              if (!t.time || !(t.time instanceof Date) || isNaN(t.time.getTime())) {
+                if (t.dateStr) {
+                  var p = new Date(t.dateStr);
+                  if (!isNaN(p.getTime())) t.time = p;
+                  else t.time = new Date();
+                } else {
+                  t.time = new Date();
+                }
               }
               if (t.exitTime && (typeof t.exitTime === "string" || typeof t.exitTime === "number")) {
                 t.exitTime = new Date(t.exitTime);
               }
-              if (!t.tags) t.tags = [];
-              if (!t.screenshots) t.screenshots = [];
+              t.symbol = String(t.symbol || "UNKNOWN").trim();
+              t.side = String(t.side || "Buy").trim();
+              t.volume = Number(t.volume || 0) || 0;
+              t.pnl = Number(t.pnl || 0) || 0;
+              t.fee = Number(t.fee || 0) || 0;
+              if (!t.tags || !Array.isArray(t.tags)) t.tags = [];
+              if (!t.screenshots || !Array.isArray(t.screenshots)) t.screenshots = [];
               if (t.chartData && t.chartData.length && t.chartDataTimeMode !== CHART_TIME_MODE) {
                 t.chartData = migrateChartCandlesToLocalWallClock(t.chartData);
                 t.chartDataTimeMode = CHART_TIME_MODE;
@@ -7725,16 +7546,17 @@
       };
 
       function getFilteredTrades() {
-        var f = trades;
+        var f = trades || [];
 
         // Time filter
-        if (timeFilter.days.length > 0) {
+        if (timeFilter && timeFilter.days && timeFilter.days.length > 0) {
           f = f.filter(function (t) {
-            return timeFilter.days.indexOf(t.time.getDay()) >= 0;
+            return t.time instanceof Date && !isNaN(t.time.getTime()) && timeFilter.days.indexOf(t.time.getDay()) >= 0;
           });
         }
-        if (timeFilter.startTime) {
+        if (timeFilter && timeFilter.startTime) {
           f = f.filter(function (t) {
+            if (!(t.time instanceof Date) || isNaN(t.time.getTime())) return false;
             var hhmm =
               String(t.time.getHours()).padStart(2, "0") +
               ":" +
@@ -7742,8 +7564,9 @@
             return hhmm >= timeFilter.startTime;
           });
         }
-        if (timeFilter.endTime) {
+        if (timeFilter && timeFilter.endTime) {
           f = f.filter(function (t) {
+            if (!(t.time instanceof Date) || isNaN(t.time.getTime())) return false;
             var hhmm =
               String(t.time.getHours()).padStart(2, "0") +
               ":" +
@@ -7765,27 +7588,30 @@
         if (dStart) {
           var startTs = new Date(dStart + "T00:00:00").getTime();
           f = f.filter(function (t) {
-            return t.time instanceof Date && t.time.getTime() >= startTs;
+            return t.time instanceof Date && !isNaN(t.time.getTime()) && t.time.getTime() >= startTs;
           });
         }
         if (dEnd) {
           var endTs = new Date(dEnd + "T23:59:59").getTime();
           f = f.filter(function (t) {
-            return t.time instanceof Date && t.time.getTime() <= endTs;
+            return t.time instanceof Date && !isNaN(t.time.getTime()) && t.time.getTime() <= endTs;
           });
         }
 
         // Side filter
-        f = f.filter(function (t) {
-          var isLong =
-            t.side.toLowerCase().indexOf("buy") >= 0 ||
-            t.side.toLowerCase() === "long";
-          if (isLong && !sideFilter.long) return false;
-          if (!isLong && !sideFilter.short) return false;
-          return true;
-        });
+        if (sideFilter) {
+          f = f.filter(function (t) {
+            var sideStr = String(t.side || "").toLowerCase();
+            var isLong =
+              sideStr.indexOf("buy") >= 0 ||
+              sideStr === "long";
+            if (isLong && !sideFilter.long) return false;
+            if (!isLong && !sideFilter.short) return false;
+            return true;
+          });
+        }
 
-        if (tagFilter.excludeTags && tagFilter.excludeTags.length > 0) {
+        if (tagFilter && tagFilter.excludeTags && tagFilter.excludeTags.length > 0) {
           f = f.filter(function (t) {
             if (!t.tags || t.tags.length === 0) return true;
             return !t.tags.some(function (tag) {
@@ -7794,7 +7620,7 @@
           });
         }
 
-        if (tagFilter.tags && tagFilter.tags.length > 0) {
+        if (tagFilter && tagFilter.tags && tagFilter.tags.length > 0) {
           f = f.filter(function (t) {
             if (logbookTagFilterLogic === "AND") {
               return tagFilter.tags.every(function (tag) {
@@ -8903,14 +8729,15 @@
       }
 
       function getSortVal(t, col) {
+        if (!t) return 0;
         if (col === "time")
-          return t.time instanceof Date ? t.time.getTime() : 0;
-        if (col === "symbol") return t.symbol.toLowerCase();
-        if (col === "side") return t.side.toLowerCase();
-        if (col === "volume") return t.volume;
-        if (col === "pnl") return t.pnl;
-        if (col === "commission") return t.fee || 0;
-        if (col === "netpnl") return t.pnl - (t.fee || 0);
+          return t.time instanceof Date && !isNaN(t.time.getTime()) ? t.time.getTime() : 0;
+        if (col === "symbol") return String(t.symbol || "").toLowerCase();
+        if (col === "side") return String(t.side || "").toLowerCase();
+        if (col === "volume") return Number(t.volume) || 0;
+        if (col === "pnl") return Number(t.pnl) || 0;
+        if (col === "commission") return Number(t.fee) || 0;
+        if (col === "netpnl") return (Number(t.pnl) || 0) - (Number(t.fee) || 0);
         return 0;
       }
 
@@ -9695,15 +9522,20 @@
       function renderTable(options) {
         options = options || {};
         var tbody = document.getElementById("tradeTableBody");
-        var search = document.getElementById("searchInput").value.toLowerCase();
+        var searchInput = document.getElementById("searchInput");
+        var search = searchInput ? searchInput.value.toLowerCase().trim() : "";
         var filtered = getFilteredTrades();
 
         var display = filtered.filter(function (t) {
+          if (!search) return true;
+          var sym = String(t.symbol || "").toLowerCase();
+          var side = String(t.side || "").toLowerCase();
           return (
-            t.symbol.toLowerCase().indexOf(search) >= 0 ||
+            sym.indexOf(search) >= 0 ||
+            side.indexOf(search) >= 0 ||
             (t.tags &&
               t.tags.some(function (tg) {
-                return tg.toLowerCase().indexOf(search) >= 0;
+                return String(tg || "").toLowerCase().indexOf(search) >= 0;
               }))
           );
         });
@@ -11038,48 +10870,50 @@
           checkOR.classList.toggle("hidden", analyticsFilterLogic !== "OR");
 
         var cloud = document.getElementById("analyticsTagCloud");
-        cloud.innerHTML = "";
-        if (!analyticsFilterTags) analyticsFilterTags = [];
-        if (!analyticsExcludeTags) analyticsExcludeTags = [];
+        if (cloud) {
+          cloud.innerHTML = "";
+          if (!analyticsFilterTags) analyticsFilterTags = [];
+          if (!analyticsExcludeTags) analyticsExcludeTags = [];
 
-        globalTags.forEach(function (t) {
-          var isInc = analyticsFilterTags.indexOf(t) >= 0;
-          var isExc = analyticsExcludeTags.indexOf(t) >= 0;
-          var btn = document.createElement("button");
-          btn.className =
-            "px-2.5 py-1 rounded-sm text-xs border transition-all uppercase font-mono flex items-center gap-1.5 select-none " +
-            (isInc
-              ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/70 font-bold active-tag"
-              : isExc
-              ? "bg-red-500/20 text-red-400 border-red-500/70 font-bold line-through opacity-85"
-              : "bg-terminal-input text-zinc-300 border-terminal hover:text-white");
-          applyTagColor(btn, t);
-          if (isInc) btn.classList.add("bg-white");
+          globalTags.forEach(function (t) {
+            var isInc = analyticsFilterTags.indexOf(t) >= 0;
+            var isExc = analyticsExcludeTags.indexOf(t) >= 0;
+            var btn = document.createElement("button");
+            btn.className =
+              "px-2.5 py-1 rounded-sm text-xs border transition-all uppercase font-mono flex items-center gap-1.5 select-none " +
+              (isInc
+                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/70 font-bold active-tag"
+                : isExc
+                ? "bg-red-500/20 text-red-400 border-red-500/70 font-bold line-through opacity-85"
+                : "bg-terminal-input text-zinc-300 border-terminal hover:text-white");
+            applyTagColor(btn, t);
+            if (isInc) btn.classList.add("bg-white");
 
-          btn.innerHTML =
-            (isInc
-              ? '<i class="fas fa-plus text-[9px] text-emerald-400"></i>'
-              : isExc
-              ? '<i class="fas fa-minus text-[9px] text-red-400"></i>'
-              : '') +
-            '<span>' +
-            formatTagLabel(t) +
-            '</span>';
-          btn.title = isInc ? "Includeren (Klik om te excluderen)" : isExc ? "Excluderen (Klik om te deactiveren)" : "Neutraal (Klik om te includeren)";
-          btn.onclick = function () {
-            if (!isInc && !isExc) {
-              analyticsFilterTags.push(t);
-            } else if (isInc) {
-              analyticsFilterTags = analyticsFilterTags.filter(function (x) { return x !== t; });
-              analyticsExcludeTags.push(t);
-            } else {
-              analyticsExcludeTags = analyticsExcludeTags.filter(function (x) { return x !== t; });
-            }
-            saveAnalyticsTagFilters();
-            renderAnalyticsView();
-          };
-          cloud.appendChild(btn);
-        });
+            btn.innerHTML =
+              (isInc
+                ? '<i class="fas fa-plus text-[9px] text-emerald-400"></i>'
+                : isExc
+                ? '<i class="fas fa-minus text-[9px] text-red-400"></i>'
+                : '') +
+              '<span>' +
+              formatTagLabel(t) +
+              '</span>';
+            btn.title = isInc ? "Includeren (Klik om te excluderen)" : isExc ? "Excluderen (Klik om te deactiveren)" : "Neutraal (Klik om te includeren)";
+            btn.onclick = function () {
+              if (!isInc && !isExc) {
+                analyticsFilterTags.push(t);
+              } else if (isInc) {
+                analyticsFilterTags = analyticsFilterTags.filter(function (x) { return x !== t; });
+                analyticsExcludeTags.push(t);
+              } else {
+                analyticsExcludeTags = analyticsExcludeTags.filter(function (x) { return x !== t; });
+              }
+              saveAnalyticsTagFilters();
+              renderAnalyticsView();
+            };
+            cloud.appendChild(btn);
+          });
+        }
 
         renderGlobalTagManager();
 
@@ -11336,6 +11170,7 @@
 
       function calculateTagSpecificMetrics() {
         var tbody = document.getElementById("analyticsTableBody");
+        if (!tbody) return;
         var pool = getFilteredTrades();
 
         if (!analyticsFilterTags) analyticsFilterTags = [];
@@ -11361,10 +11196,13 @@
 
         if (analyticsFilterTags.length === 0 && analyticsExcludeTags.length === 0) {
           ["tag-kpi-netpnl", "tag-kpi-pf"].forEach(function (id) {
-            document.getElementById(id).innerText = "$0.00";
+            var el = document.getElementById(id);
+            if (el) el.innerText = "$0.00";
           });
-          document.getElementById("tag-kpi-winrate").innerText = "0.0%";
-          document.getElementById("tag-kpi-count").innerText = "0";
+          var wrEl = document.getElementById("tag-kpi-winrate");
+          if (wrEl) wrEl.innerText = "0.0%";
+          var cntEl = document.getElementById("tag-kpi-count");
+          if (cntEl) cntEl.innerText = "0";
           tbody.innerHTML =
             '<tr><td colspan="6" class="px-4 py-6 text-center text-zinc-300 italic">Selecteer tags om de data te filteren (Includeren / Excluderen).</td></tr>';
           renderAnalyticsChart([]);
@@ -11374,10 +11212,13 @@
         tbody.innerHTML = "";
         if (matches.length === 0) {
           ["tag-kpi-netpnl", "tag-kpi-pf"].forEach(function (id) {
-            document.getElementById(id).innerText = "$0.00";
+            var el = document.getElementById(id);
+            if (el) el.innerText = "$0.00";
           });
-          document.getElementById("tag-kpi-winrate").innerText = "0.0%";
-          document.getElementById("tag-kpi-count").innerText = "0";
+          var wrEl = document.getElementById("tag-kpi-winrate");
+          if (wrEl) wrEl.innerText = "0.0%";
+          var cntEl = document.getElementById("tag-kpi-count");
+          if (cntEl) cntEl.innerText = "0";
           tbody.innerHTML =
             '<tr><td colspan="6" class="px-4 py-6 text-center text-zinc-300 italic">Zero variables match current parameters.</td></tr>';
           renderAnalyticsChart([]);
@@ -11450,13 +11291,19 @@
 
         var wr = ((wins / matches.length) * 100).toFixed(1);
         var pf = loss === 0 ? profit.toFixed(2) : (profit / loss).toFixed(2);
-        document.getElementById("tag-kpi-netpnl").innerText = fmtUSD(netValue);
-        document.getElementById("tag-kpi-netpnl").className =
-          "text-base font-bold font-mono mt-0.5 " +
-          (netValue >= 0 ? "pnl-profit" : "pnl-loss");
-        document.getElementById("tag-kpi-winrate").innerText = wr + "%";
-        document.getElementById("tag-kpi-pf").innerText = pf;
-        document.getElementById("tag-kpi-count").innerText = matches.length;
+        var netPnlEl = document.getElementById("tag-kpi-netpnl");
+        if (netPnlEl) {
+          netPnlEl.innerText = fmtUSD(netValue);
+          netPnlEl.className =
+            "text-base font-bold font-mono mt-0.5 " +
+            (netValue >= 0 ? "pnl-profit" : "pnl-loss");
+        }
+        var wrEl = document.getElementById("tag-kpi-winrate");
+        if (wrEl) wrEl.innerText = wr + "%";
+        var pfEl = document.getElementById("tag-kpi-pf");
+        if (pfEl) pfEl.innerText = pf;
+        var cntEl = document.getElementById("tag-kpi-count");
+        if (cntEl) cntEl.innerText = matches.length;
 
         renderAnalyticsChart(matches);
       }
@@ -13027,36 +12874,69 @@
         reader.onload = async function (e) {
           try {
             var importedData = JSON.parse(e.target.result);
-            if (importedData.trades && Array.isArray(importedData.trades)) {
-              trades = importedData.trades.map(function (t) {
-                if (t.time && (typeof t.time === "string" || typeof t.time === "number")) {
-                  t.time = new Date(t.time);
+            var rawTrades = null;
+            if (Array.isArray(importedData)) {
+              rawTrades = importedData;
+            } else if (importedData && Array.isArray(importedData.trades)) {
+              rawTrades = importedData.trades;
+            } else if (importedData && Array.isArray(importedData.journalTrades)) {
+              rawTrades = importedData.journalTrades;
+            }
+
+            if (rawTrades) {
+              trades = rawTrades.map(function (t) {
+                var tradeObj = Object.assign({}, t);
+
+                var rawTime = tradeObj.time || tradeObj.Time || tradeObj.date || tradeObj.Date || tradeObj.timestamp || tradeObj.Timestamp || tradeObj.datetime || tradeObj.DateTime;
+                var parsedTime = null;
+                if (rawTime instanceof Date && !isNaN(rawTime.getTime())) {
+                  parsedTime = rawTime;
+                } else if (typeof rawTime === "string" || typeof rawTime === "number") {
+                  parsedTime = new Date(rawTime);
                 }
-                if (t.exitTime && (typeof t.exitTime === "string" || typeof t.exitTime === "number")) {
-                  t.exitTime = new Date(t.exitTime);
+                if (!parsedTime || isNaN(parsedTime.getTime())) {
+                  if (tradeObj.dateStr) {
+                    var p = new Date(tradeObj.dateStr);
+                    if (!isNaN(p.getTime())) parsedTime = p;
+                    else parsedTime = new Date();
+                  } else {
+                    parsedTime = new Date();
+                  }
                 }
-                if (!t.tags) t.tags = [];
-                if (!t.screenshots) t.screenshots = [];
-                if (t.chartData && t.chartData.length && t.chartDataTimeMode !== CHART_TIME_MODE) {
-                  t.chartData = migrateChartCandlesToLocalWallClock(t.chartData);
-                  t.chartDataTimeMode = CHART_TIME_MODE;
+                tradeObj.time = parsedTime;
+
+                if (tradeObj.exitTime) {
+                  var parsedExit = tradeObj.exitTime instanceof Date ? tradeObj.exitTime : new Date(tradeObj.exitTime);
+                  tradeObj.exitTime = !isNaN(parsedExit.getTime()) ? parsedExit : null;
                 }
-                return t;
+
+                tradeObj.symbol = String(tradeObj.symbol || tradeObj.Symbol || tradeObj.ticker || tradeObj.instrument || "UNKNOWN").trim();
+                tradeObj.side = String(tradeObj.side || tradeObj.Side || tradeObj.type || tradeObj.action || "Buy").trim();
+                tradeObj.volume = Number(tradeObj.volume || tradeObj.qty || tradeObj.quantity || tradeObj.size || 0) || 0;
+                tradeObj.pnl = Number(tradeObj.pnl || tradeObj.PnL || tradeObj.netPnl || tradeObj.profit || 0) || 0;
+                tradeObj.fee = Number(tradeObj.fee || tradeObj.Fee || tradeObj.commission || tradeObj.comm || 0) || 0;
+
+                if (!tradeObj.tags || !Array.isArray(tradeObj.tags)) tradeObj.tags = [];
+                if (!tradeObj.screenshots || !Array.isArray(tradeObj.screenshots)) tradeObj.screenshots = [];
+                if (tradeObj.chartData && tradeObj.chartData.length && tradeObj.chartDataTimeMode !== CHART_TIME_MODE) {
+                  tradeObj.chartData = migrateChartCandlesToLocalWallClock(tradeObj.chartData);
+                  tradeObj.chartDataTimeMode = CHART_TIME_MODE;
+                }
+                return tradeObj;
               });
 
-              if (importedData.globalTags && Array.isArray(importedData.globalTags)) {
+              if (importedData && importedData.globalTags && Array.isArray(importedData.globalTags)) {
                 globalTags = importedData.globalTags.slice();
-              } else if (importedData.knownTags && Array.isArray(importedData.knownTags)) {
+              } else if (importedData && importedData.knownTags && Array.isArray(importedData.knownTags)) {
                 globalTags = importedData.knownTags.slice();
               }
 
               globalTagColors =
-                importedData.globalTagColors &&
-                typeof importedData.globalTagColors === "object"
+                importedData && importedData.globalTagColors && typeof importedData.globalTagColors === "object"
                   ? Object.assign({}, importedData.globalTagColors)
                   : {};
 
-              if (importedData.tagGroups && Array.isArray(importedData.tagGroups)) {
+              if (importedData && importedData.tagGroups && Array.isArray(importedData.tagGroups)) {
                 tagGroups = importedData.tagGroups;
               } else {
                 loadTagGroups();
@@ -13092,12 +12972,12 @@
               saveGlobalTagColors();
               saveTagGroups();
 
-              if (importedData.commissionRules) {
+              if (importedData && importedData.commissionRules) {
                 commissionRules = importedData.commissionRules;
                 saveCommissions();
               }
 
-              if (importedData.customCharts) {
+              if (importedData && importedData.customCharts) {
                 customCharts = importedData.customCharts.map(function (cc) {
                   if (!Array.isArray(cc.tags)) cc.tags = [];
                   if (!Array.isArray(cc.excludeTags)) cc.excludeTags = [];
@@ -13107,24 +12987,24 @@
                 saveCustomCharts();
               }
 
-              if (importedData.analyticsMainChartTitle !== undefined) {
+              if (importedData && importedData.analyticsMainChartTitle !== undefined) {
                 analyticsMainChartTitle = importedData.analyticsMainChartTitle;
                 saveAnalyticsMainChartTitle();
               }
 
-              if (importedData.analyticsFilterTags !== undefined) {
+              if (importedData && importedData.analyticsFilterTags !== undefined) {
                 analyticsFilterTags = importedData.analyticsFilterTags || [];
                 analyticsExcludeTags = importedData.analyticsExcludeTags || [];
                 saveAnalyticsTagFilters();
               }
 
-              if (importedData.analyticsFilterLogic !== undefined) {
+              if (importedData && importedData.analyticsFilterLogic !== undefined) {
                 if (typeof setAnalyticsLogic === "function") {
                   setAnalyticsLogic(importedData.analyticsFilterLogic || "AND");
                 }
               }
 
-              if (importedData.flowcharts) {
+              if (importedData && importedData.flowcharts) {
                 if (typeof flowcharts !== "undefined") flowcharts = importedData.flowcharts;
                 if (typeof saveFlowcharts === "function") saveFlowcharts();
                 if (typeof renderFlowchartView === "function") {
@@ -13132,7 +13012,7 @@
                 }
               }
 
-              if (importedData.globalChartData && Array.isArray(importedData.globalChartData)) {
+              if (importedData && importedData.globalChartData && Array.isArray(importedData.globalChartData)) {
                 globalChartData =
                   importedData.globalChartDataTimeMode === CHART_TIME_MODE
                     ? importedData.globalChartData
@@ -13142,25 +13022,46 @@
               }
               await saveGlobalChartData();
 
-              if (Array.isArray(importedData.backtestDatasets)) {
+              if (importedData && Array.isArray(importedData.backtestDatasets)) {
                 backtestDatasets = importedData.backtestDatasets;
                 if (typeof saveBacktestDatasets === "function") await saveBacktestDatasets();
                 if (typeof renderChartDataLibrary === "function") renderChartDataLibrary();
               }
 
-              if (Array.isArray(importedData.backtestTimeframes) && importedData.backtestTimeframes.length) {
+              if (importedData && Array.isArray(importedData.backtestTimeframes) && importedData.backtestTimeframes.length) {
                 localStorage.setItem("qt_bt_timeframes_v1", JSON.stringify(importedData.backtestTimeframes));
                 if (typeof renderBacktestTimeframeControls === "function") renderBacktestTimeframeControls();
               }
 
-              if (Array.isArray(importedData.journalChartTimeframes)) localStorage.setItem("qt_journal_timeframes_v1", JSON.stringify(importedData.journalChartTimeframes));
-              if (Array.isArray(importedData.sharedFootprintTemplates)) localStorage.setItem("qt_shared_footprint_templates_v1", JSON.stringify(importedData.sharedFootprintTemplates));
-              if (Array.isArray(importedData.sharedLayoutProfiles)) localStorage.setItem("qt_shared_layout_profiles_v1", JSON.stringify(importedData.sharedLayoutProfiles));
-              if (typeof importedData.sharedFootprintDefault === "string") localStorage.setItem("qt_shared_footprint_default_v1", importedData.sharedFootprintDefault);
-              if (typeof importedData.sharedLayoutDefault === "string") localStorage.setItem("qt_shared_layout_default_v1", importedData.sharedLayoutDefault);
-              if (importedData.sharedFootprintActive) localStorage.setItem("qt_shared_footprint_active_v1", JSON.stringify(importedData.sharedFootprintActive));
-              if (importedData.backtestChartLayout) localStorage.setItem("qt_bt_chart_layout_v1", JSON.stringify(importedData.backtestChartLayout));
+              if (importedData && Array.isArray(importedData.journalChartTimeframes)) localStorage.setItem("qt_journal_timeframes_v1", JSON.stringify(importedData.journalChartTimeframes));
+              if (importedData && Array.isArray(importedData.sharedFootprintTemplates)) localStorage.setItem("qt_shared_footprint_templates_v1", JSON.stringify(importedData.sharedFootprintTemplates));
+              if (importedData && Array.isArray(importedData.sharedLayoutProfiles)) localStorage.setItem("qt_shared_layout_profiles_v1", JSON.stringify(importedData.sharedLayoutProfiles));
+              if (importedData && typeof importedData.sharedFootprintDefault === "string") localStorage.setItem("qt_shared_footprint_default_v1", importedData.sharedFootprintDefault);
+              if (importedData && typeof importedData.sharedLayoutDefault === "string") localStorage.setItem("qt_shared_layout_default_v1", importedData.sharedLayoutDefault);
+              if (importedData && importedData.sharedFootprintActive) localStorage.setItem("qt_shared_footprint_active_v1", JSON.stringify(importedData.sharedFootprintActive));
+              if (importedData && importedData.backtestChartLayout) localStorage.setItem("qt_bt_chart_layout_v1", JSON.stringify(importedData.backtestChartLayout));
               if (typeof renderSharedChartProfileLists === "function") renderSharedChartProfileLists();
+
+              // Reset filters on journal view so imported trades are immediately displayed
+              var searchInputEl = document.getElementById("searchInput");
+              if (searchInputEl) searchInputEl.value = "";
+
+              ["headerDateFilterStart", "headerDateFilterEnd", "dateFilterStart", "dateFilterEnd"].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) el.value = "";
+              });
+
+              if (typeof timeFilter !== "undefined") {
+                timeFilter.days = [];
+                timeFilter.startTime = "";
+                timeFilter.endTime = "";
+              }
+              if (typeof sideFilter !== "undefined") {
+                sideFilter = { long: true, short: true };
+              }
+              if (typeof tagFilter !== "undefined") {
+                tagFilter = { tags: [], excludeTags: [] };
+              }
 
               saveData();
               if (typeof renderAccounts === "function") renderAccounts();
